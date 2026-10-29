@@ -3,9 +3,10 @@ from io import BytesIO
 import base64
 import math
 
-from PIL import Image, ImageOps, ImageDraw, ImageChops
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from PIL import Image, ImageOps, ImageDraw, ImageChops
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -72,7 +73,6 @@ BIOLOGY = {
 }
 
 
-# 내부 데이터 구조를 유지하기 위한 자료입니다.
 # 화면에는 학명과 생태 특징만 표시합니다.
 OBSERVATIONS = {
     "1_1": [
