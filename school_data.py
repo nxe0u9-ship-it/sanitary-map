@@ -10,7 +10,6 @@ import streamlit as st
 BASE_DIR = Path(__file__).resolve().parent
 
 
-# 수정된 자료의 미생물별 설명
 BIOLOGY = {
     "Aspergillus niger": (
         "검은색 분생포자가 빽빽해지면 표면이 검은 가루처럼 보이는 사상균. "
@@ -72,7 +71,7 @@ BIOLOGY = {
 }
 
 
-# 구분, 관찰 특징, 학명
+# 원본 관찰 데이터는 보존하고 화면에는 학명과 생태 설명만 표시
 OBSERVATIONS = {
     "1_1": [
         ("A", "검은색의 굵고 둥근 집락", "Aspergillus niger"),
@@ -207,7 +206,7 @@ OBSERVATIONS = {
 }
 
 
-# 자료에 제시된 (평균 점수, 상대 단계)
+# 자료 기준 점수와 위험도 단계
 RISK_RESULTS = {
     "1_1": (3.67, 4),
     "1_2": (3.67, 4),
@@ -236,6 +235,16 @@ RISK_RESULTS = {
     "7_2": (4.00, 4),
     "7_3": (2.67, 2),
     "7_4": (2.67, 2),
+}
+
+
+# 등급 상자와 지도에서 함께 사용하는 색상
+RISK_COLORS = {
+    1: ("#E8F2FF", "#184A7D"),
+    2: ("#E3F4EE", "#205442"),
+    3: ("#FFF4CD", "#6B5000"),
+    4: ("#FFE5CD", "#7D3F11"),
+    5: ("#FCE1E7", "#842C43"),
 }
 
 
@@ -431,7 +440,10 @@ def crop_sector(image, plate, section):
 
     def direction_angle(index):
         x, y = directions[index]
-        return math.atan2(y * sy - cy, x * sx - cx)
+        return math.atan2(
+            y * sy - cy,
+            x * sx - cx,
+        )
 
     start = direction_angle(first)
     end = direction_angle(last)
@@ -498,52 +510,19 @@ def show_identification(result_id):
 
     if risk:
         score, stage = risk
-
-        colors = {
-            1: ("#E8F2FF", "#184A7D"),
-            2: ("#E3F4EE", "#205442"),
-            3: ("#FFF4CD", "#6B5000"),
-            4: ("#FFE5CD", "#7D3F11"),
-            5: ("#FCE1E7", "#842C43"),
-        }
-
-        background, foreground = colors[stage]
+        background, foreground = RISK_COLORS[stage]
 
         st.markdown(
-            f'<div style="background:{background};'
-            f'color:{foreground};padding:13px 15px;'
-            'border-radius:12px;margin:10px 0;font-weight:700;">'
+            f'<div style="background:{background};color:{foreground};'
+            'padding:13px 15px;border-radius:12px;'
+            'margin:10px 0;font-weight:700;">'
             f'<div style="font-size:18px;">'
-            f'상대 잠재 중증도 {stage}단계 / 5단계</div>'
+            f'위험도 {stage}단계 / 5단계</div>'
             f'<div style="font-size:15px;margin-top:5px;">'
-            f'자료상 평균 점수 {score:.2f} / 5</div>'
+            f'자료 기준 점수 {score:.2f} / 5</div>'
             '</div>',
             unsafe_allow_html=True,
         )
-
-        st.caption(
-            "교육용 상대등급이며, 실제 감염률·치사율이나 "
-            "장소의 안전도를 뜻하지 않습니다."
-        )
-
-        with st.expander("등급 계산 기준"):
-            st.write(
-                "PDF에서 정한 미생물별 가중치를 "
-                "집락 형태별로 같은 비중으로 평균한 점수입니다."
-            )
-
-            st.write(
-                "1단계: 2.00 이하 / "
-                "2단계: 2.00 초과~3.00 이하 / "
-                "3단계: 3.00 초과~3.60 이하 / "
-                "4단계: 3.60 초과~4.25 이하 / "
-                "5단계: 4.25 초과"
-            )
-
-            st.caption(
-                "가중치와 구간은 자료의 학습용 설정이며 "
-                "의학적으로 검증된 위험도 공식이 아닙니다."
-            )
 
     st.markdown("**동정 결과**")
 
@@ -551,19 +530,12 @@ def show_identification(result_id):
         st.caption("아직 등록되지 않았습니다.")
         return
 
-    for label, observation, scientific_name, general_trait in rows:
+    for _label, _observation, scientific_name, general_trait in rows:
         st.markdown(
-            f"**{label}** · *{scientific_name}*"
+            f"- **{scientific_name}**"
         )
 
-        st.write(
-            f"관찰 특징: {observation}"
-        )
-
-        with st.expander(
-            f"{label} 미생물의 생태·특징"
-        ):
-            st.write(general_trait)
+        st.write(general_trait)
 
 
 def show_result_photo(result_id, framed=False):
@@ -594,6 +566,36 @@ def show_result_photo(result_id, framed=False):
         st.error(
             f"사진을 표시하지 못했습니다: {error}"
         )
+
+
+def place_risk(place):
+    # 해당 공간의 모든 채취 대상에 대한 위험도 단계 평균
+    stages = [
+        RISK_RESULTS[result_id][1]
+        for result_id in GROUPS[place]
+        if result_id in RISK_RESULTS
+    ]
+
+    if not stages:
+        return None, None
+
+    average = sum(stages) / len(stages)
+
+    # 0.5 이상은 올림하는 반올림
+    color_stage = min(
+        5,
+        max(1, math.floor(average + 0.5)),
+    )
+
+    return average, color_stage
+
+
+def hex_rgba(color, alpha):
+    red = int(color[1:3], 16)
+    green = int(color[3:5], 16)
+    blue = int(color[5:7], 16)
+
+    return f"rgba({red},{green},{blue},{alpha})"
 
 
 def render_map(state_key, chart_key, chosen_ids=()):
@@ -632,17 +634,38 @@ def render_map(state_key, chart_key, chosen_ids=()):
         if item in RESULTS
     }
 
-    xs, ys, names = [], [], []
+    xs, ys, names, texts = [], [], [], []
 
     for name, bounds in HIGHLIGHTS.items():
         left, top, right, bottom = bounds
+        average, stage = place_risk(name)
 
+        # 현재 선택한 공간은 위험도 색보다 파란색을 우선 적용
         if name == st.session_state[state_key]:
-            color = "rgba(53,199,118,0.35)"
-        elif name in chosen_places:
-            color = "rgba(255,157,51,0.38)"
+            fill = "rgba(59,130,246,0.36)"
+
+            line = {
+                "color": "#2563EB",
+                "width": 2,
+            }
+
         else:
-            color = "rgba(255,219,51,0.30)"
+            if stage is not None:
+                fill = hex_rgba(
+                    RISK_COLORS[stage][0],
+                    0.82,
+                )
+            else:
+                fill = "rgba(220,220,220,0.5)"
+
+            if name in chosen_places:
+                line = {
+                    "color": "#475569",
+                    "width": 1.5,
+                    "dash": "dot",
+                }
+            else:
+                line = {"width": 0}
 
         fig.add_shape(
             type="rect",
@@ -650,23 +673,33 @@ def render_map(state_key, chart_key, chosen_ids=()):
             y0=top,
             x1=right,
             y1=bottom,
-            fillcolor=color,
-            line={"width": 0},
+            fillcolor=fill,
+            line=line,
             layer="above",
         )
+
+        if average is not None:
+            hover = (
+                f"{name}<br>"
+                f"평균 위험도 {average:.2f} / 5<br>"
+                f"색상 기준 {stage}단계 · 자료 기준"
+            )
+        else:
+            hover = f"{name}<br>위험도 미등록"
 
         for x in range(left, right + 1, 4):
             for y in range(top, bottom + 1, 4):
                 xs.append(x)
                 ys.append(y)
                 names.append(name)
+                texts.append(hover)
 
     fig.add_trace(
         go.Scatter(
             x=xs,
             y=ys,
             customdata=names,
-            text=names,
+            text=texts,
             mode="markers",
             marker={
                 "size": 6,
@@ -691,18 +724,23 @@ def render_map(state_key, chart_key, chosen_ids=()):
         dragmode=False,
         hovermode="closest",
         hoverdistance=8,
-        uirevision=chart_key,
         xaxis={
             "range": [0, 818],
+            "autorange": False,
             "visible": False,
             "fixedrange": True,
+            "constrain": "domain",
+            "constraintoward": "left",
         },
         yaxis={
             "range": [560, 0],
+            "autorange": False,
             "visible": False,
             "fixedrange": True,
             "scaleanchor": "x",
             "scaleratio": 1,
+            "constrain": "domain",
+            "constraintoward": "top",
         },
         paper_bgcolor="white",
         plot_bgcolor="white",
@@ -711,7 +749,7 @@ def render_map(state_key, chart_key, chosen_ids=()):
     event = st.plotly_chart(
         fig,
         use_container_width=True,
-        key=chart_key,
+        key=f"{chart_key}_risk_v4",
         on_select="rerun",
         selection_mode="points",
         config={
@@ -738,29 +776,36 @@ def render_map(state_key, chart_key, chosen_ids=()):
 
 
 def show_legend(comparison=False):
-    items = [
-        ("#FFF1A8", "#514000", "관찰 기록이 있는 공간"),
-        ("#C8F0D8", "#104D2C", "현재 선택한 공간"),
-    ]
-
-    if comparison:
-        items.insert(
-            1,
-            ("#FFD9B0", "#693500", "비교 대상이 담긴 공간"),
-        )
-
     cards = "".join(
         f'<span style="background:{background};'
-        f'color:{foreground};padding:11px 14px;'
-        f'border-radius:10px;font-size:17px;'
-        f'font-weight:700;">{label}</span>'
-        for background, foreground, label in items
+        f'color:{foreground};border:1px solid {foreground};'
+        f'padding:10px 13px;border-radius:10px;'
+        f'font-size:17px;font-weight:700;">'
+        f'위험도 {stage}단계</span>'
+        for stage, (background, foreground) in RISK_COLORS.items()
+    )
+
+    cards += (
+        '<span style="background:#2563EB;color:white;'
+        'padding:10px 13px;border-radius:10px;'
+        'font-size:17px;font-weight:700;">'
+        '현재 선택한 공간</span>'
     )
 
     st.markdown(
-        '<div style="display:flex;gap:10px;'
-        'flex-wrap:wrap;margin:8px 0 16px;">'
+        '<div style="display:flex;gap:9px;'
+        'flex-wrap:wrap;margin:8px 0 12px;">'
         + cards
         + "</div>",
         unsafe_allow_html=True,
     )
+
+    st.caption(
+        "자료 기준 · 공간별 위험도 단계의 평균값을 "
+        "반올림해 색상으로 표시합니다."
+    )
+
+    if comparison:
+        st.caption(
+            "점선 테두리: 비교에 담긴 공간"
+        )
