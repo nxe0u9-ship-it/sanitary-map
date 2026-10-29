@@ -72,7 +72,8 @@ BIOLOGY = {
 }
 
 
-# 원본 관찰 데이터는 보존하고 화면에는 학명과 생태 설명만 표시
+# 기존 데이터 구조 유지용 자료입니다.
+# 화면에는 학명과 생태 특징만 표시합니다.
 OBSERVATIONS = {
     "1_1": [
         ("A", "검은색의 굵고 둥근 집락", "Aspergillus niger"),
@@ -207,7 +208,6 @@ OBSERVATIONS = {
 }
 
 
-# 자료 기준 점수와 위험도 단계
 RISK_RESULTS = {
     "1_1": (3.67, 4),
     "1_2": (3.67, 4),
@@ -239,16 +239,6 @@ RISK_RESULTS = {
 }
 
 
-# 배경색, 글자색
-RISK_COLORS = {
-    1: ("#E8F2FF", "#184A7D"),
-    2: ("#E3F4EE", "#205442"),
-    3: ("#FFF4CD", "#6B5000"),
-    4: ("#FFE5CD", "#7D3F11"),
-    5: ("#FCE1E7", "#842C43"),
-}
-
-
 IDENTIFICATIONS = {
     key: [
         (label, observation, species, BIOLOGY[species])
@@ -258,7 +248,6 @@ IDENTIFICATIONS = {
 }
 
 
-# 평면도 원본 818 × 560 기준 표시 영역
 HIGHLIGHTS = {
     "운동장": (240, 71, 350, 101),
     "본관 왼쪽 위 계단": (53, 111, 104, 141),
@@ -326,33 +315,49 @@ SHORT_NAMES = [
 
 PHOTO_BOUNDS = {
     1: (
-        (270, 300, 1370, 1390), (780, 850),
+        (270, 300, 1370, 1390),
+        (780, 850),
         ((720, 330), (1320, 900), (980, 1380), (310, 810)),
     ),
     2: (
-        (170, 285, 1330, 1420), (768, 870),
+        (170, 285, 1330, 1420),
+        (768, 870),
         ((780, 300), (1320, 885), (730, 1410), (180, 970)),
     ),
     3: (
-        (300, 280, 1400, 1400), (850, 750),
+        (300, 280, 1400, 1400),
+        (850, 750),
         ((700, 280), (1390, 740), (980, 1390), (300, 760)),
     ),
     4: (
-        (280, 175, 1385, 1320), (900, 770),
+        (280, 175, 1385, 1320),
+        (900, 770),
         ((900, 180), (1380, 785), (830, 1320), (290, 760)),
     ),
     5: (
-        (160, 170, 1430, 1375), (880, 800),
+        (160, 170, 1430, 1375),
+        (880, 800),
         ((870, 175), (1430, 825), (820, 1370), (170, 750)),
     ),
     6: (
-        (260, 290, 1400, 1400), (790, 810),
+        (260, 290, 1400, 1400),
+        (790, 810),
         ((800, 300), (1390, 740), (800, 1390), (270, 835)),
     ),
     7: (
-        (210, 185, 1420, 1430), (835, 820),
+        (210, 185, 1420, 1430),
+        (835, 820),
         ((780, 195), (1410, 780), (840, 1420), (220, 890)),
     ),
+}
+
+
+RISK_COLORS = {
+    1: ("#E8F2FF", "#184A7D"),
+    2: ("#E3F4EE", "#205442"),
+    3: ("#FFF4CD", "#6B5000"),
+    4: ("#FFE5CD", "#7D3F11"),
+    5: ("#FCE1E7", "#842C43"),
 }
 
 
@@ -459,21 +464,35 @@ def crop_sector(image, plate, section):
     for step in range(91):
         angle = start + (end - start) * step / 90
 
-        points.append((
-            cx + reach * math.cos(angle),
-            cy + reach * math.sin(angle),
-        ))
+        points.append(
+            (
+                cx + reach * math.cos(angle),
+                cy + reach * math.sin(angle),
+            )
+        )
 
     sector_mask = Image.new("L", image.size, 0)
-    ImageDraw.Draw(sector_mask).polygon(points, fill=255)
+    ImageDraw.Draw(sector_mask).polygon(
+        points,
+        fill=255,
+    )
 
-    mask = ImageChops.multiply(dish_mask, sector_mask)
-    mask = ImageChops.multiply(mask, image.getchannel("A"))
+    mask = ImageChops.multiply(
+        dish_mask,
+        sector_mask,
+    )
+
+    mask = ImageChops.multiply(
+        mask,
+        image.getchannel("A"),
+    )
 
     box = mask.getbbox()
 
     if box is None:
-        raise ValueError("사진 자르기 영역을 확인해주세요.")
+        raise ValueError(
+            "사진 자르기 영역을 확인해주세요."
+        )
 
     result = image.copy()
     result.putalpha(mask)
@@ -482,8 +501,16 @@ def crop_sector(image, plate, section):
 
 
 def make_display_photo(image):
-    fitted = ImageOps.contain(image, (560, 560))
-    canvas = Image.new("RGBA", (600, 600), (0, 0, 0, 0))
+    fitted = ImageOps.contain(
+        image,
+        (560, 560),
+    )
+
+    canvas = Image.new(
+        "RGBA",
+        (600, 600),
+        (0, 0, 0, 0),
+    )
 
     canvas.alpha_composite(
         fitted,
@@ -507,7 +534,11 @@ def display_name(record):
 
 
 def show_identification(result_id):
-    rows = IDENTIFICATIONS.get(result_id, [])
+    rows = IDENTIFICATIONS.get(
+        result_id,
+        [],
+    )
+
     risk = RISK_RESULTS.get(result_id)
 
     if risk:
@@ -515,13 +546,18 @@ def show_identification(result_id):
         background, foreground = RISK_COLORS[stage]
 
         st.markdown(
-            f'<div style="background:{background};color:{foreground};'
-            'padding:13px 15px;border-radius:12px;'
-            'margin:10px 0;font-weight:700;">'
+            f'<div style="background:{background};'
+            f'color:{foreground};'
+            'padding:13px 15px;'
+            'border-radius:12px;'
+            'margin:10px 0;'
+            'font-weight:700;">'
             f'<div style="font-size:18px;">'
-            f'위험도 {stage}단계 / 5단계</div>'
-            f'<div style="font-size:15px;margin-top:5px;">'
-            f'자료 기준 점수 {score:.2f} / 5</div>'
+            f'위험도 {stage}단계 / 5단계'
+            '</div>'
+            '<div style="font-size:15px;margin-top:5px;">'
+            f'자료 기준 점수 {score:.2f} / 5'
+            '</div>'
             '</div>',
             unsafe_allow_html=True,
         )
@@ -529,7 +565,9 @@ def show_identification(result_id):
     st.markdown("**동정 결과**")
 
     if not rows:
-        st.caption("아직 등록되지 않았습니다.")
+        st.caption(
+            "아직 등록되지 않았습니다."
+        )
         return
 
     for _label, _observation, scientific_name, general_trait in rows:
@@ -547,7 +585,9 @@ def show_result_photo(result_id, framed=False):
         image = get_photo(record["plate"])
 
         if image is None:
-            st.warning("배양 사진 파일을 찾지 못했습니다.")
+            st.warning(
+                "배양 사진 파일을 찾지 못했습니다."
+            )
             return
 
         cropped = crop_sector(
@@ -584,10 +624,22 @@ def place_risk(place):
 
     color_stage = min(
         5,
-        max(1, math.floor(average + 0.5)),
+        max(
+            1,
+            math.floor(average + 0.5),
+        ),
     )
 
     return average, color_stage
+
+
+def hex_rgba(color, alpha):
+    return (
+        f"rgba({int(color[1:3], 16)},"
+        f"{int(color[3:5], 16)},"
+        f"{int(color[5:7], 16)},"
+        f"{alpha})"
+    )
 
 
 def render_map(state_key, chart_key, chosen_ids=()):
@@ -597,14 +649,22 @@ def render_map(state_key, chart_key, chosen_ids=()):
     path = BASE_DIR / "school_map.png"
 
     if not path.is_file():
-        st.error("학교 지도 사진을 찾지 못했습니다.")
+        st.error(
+            "학교 지도 사진을 찾지 못했습니다."
+        )
         return
 
     with Image.open(path) as source:
-        map_image = source.convert("RGB").resize((818, 560))
+        map_image = source.convert("RGB").resize(
+            (818, 560)
+        )
 
-    # 검은 글씨는 유지하면서 밝은 배경만 물들이는 색상 레이어
-    tint = Image.new("RGB", map_image.size, "white")
+    tint = Image.new(
+        "RGB",
+        map_image.size,
+        "white",
+    )
+
     tint_draw = ImageDraw.Draw(tint)
 
     for name, bounds in HIGHLIGHTS.items():
@@ -612,20 +672,29 @@ def render_map(state_key, chart_key, chosen_ids=()):
 
         if name == st.session_state[state_key]:
             color = "#E9D5FF"
-        elif stage is not None:
-            color = RISK_COLORS[stage][0]
         else:
-            color = "#E5E7EB"
+            color = (
+                RISK_COLORS[stage][0]
+                if stage
+                else "#E5E7EB"
+            )
 
-        tint_draw.rectangle(bounds, fill=color)
+        tint_draw.rectangle(
+            bounds,
+            fill=color,
+        )
 
+    # 검은 글씨를 유지하면서 배경에 색상을 적용합니다.
     colored_map = ImageChops.multiply(
         map_image,
         tint,
     )
 
     buffer = BytesIO()
-    colored_map.save(buffer, format="PNG")
+    colored_map.save(
+        buffer,
+        format="PNG",
+    )
 
     encoded = base64.b64encode(
         buffer.getvalue()
@@ -647,53 +716,41 @@ def render_map(state_key, chart_key, chosen_ids=()):
         layer="below",
     )
 
-    chosen_places = {
-        RESULTS[item]["place"]
-        for item in chosen_ids
-        if item in RESULTS
-    }
-
-    xs, ys, names, texts = [], [], [], []
+    xs = []
+    ys = []
+    names = []
+    texts = []
 
     for name, bounds in HIGHLIGHTS.items():
         left, top, right, bottom = bounds
         average, stage = place_risk(name)
 
         if name == st.session_state[state_key]:
-            line = {
-                "color": "#7C3AED",
-                "width": 2.5,
-            }
-
-        elif name in chosen_places:
-            line = {
-                "color": "#475569",
-                "width": 1.5,
-                "dash": "dot",
-            }
-
-        else:
-            line = {"width": 0}
-
-        fig.add_shape(
-            type="rect",
-            x0=left,
-            y0=top,
-            x1=right,
-            y1=bottom,
-            fillcolor="rgba(0,0,0,0)",
-            line=line,
-            layer="above",
-        )
+            fig.add_shape(
+                type="rect",
+                x0=left,
+                y0=top,
+                x1=right,
+                y1=bottom,
+                fillcolor="rgba(0,0,0,0)",
+                line={
+                    "color": "#7C3AED",
+                    "width": 2.5,
+                },
+                layer="above",
+            )
 
         if average is not None:
             hover = (
-                f"{name}<br>"
-                f"평균 위험도 {average:.2f} / 5<br>"
-                f"색상 기준 {stage}단계 · 자료 기준"
+                f"{name}"
+                f"<br>평균 위험도 {average:.2f} / 5"
+                f"<br>색상 기준 {stage}단계 · 자료 기준"
             )
         else:
-            hover = f"{name}<br>위험도 미등록"
+            hover = (
+                f"{name}"
+                "<br>위험도 미등록"
+            )
 
         for x in range(left, right + 1, 4):
             for y in range(top, bottom + 1, 4):
@@ -715,10 +772,14 @@ def render_map(state_key, chart_key, chosen_ids=()):
                 "color": "rgba(0,0,0,0.001)",
             },
             selected={
-                "marker": {"opacity": 1},
+                "marker": {
+                    "opacity": 1,
+                }
             },
             unselected={
-                "marker": {"opacity": 1},
+                "marker": {
+                    "opacity": 1,
+                }
             },
             hovertemplate="%{text}<extra></extra>",
         )
@@ -726,7 +787,12 @@ def render_map(state_key, chart_key, chosen_ids=()):
 
     fig.update_layout(
         height=570,
-        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        margin={
+            "l": 0,
+            "r": 0,
+            "t": 0,
+            "b": 0,
+        },
         showlegend=False,
         clickmode="event+select",
         dragmode=False,
@@ -770,10 +836,15 @@ def render_map(state_key, chart_key, chosen_ids=()):
     points = event.get(
         "selection",
         {},
-    ).get("points", [])
+    ).get(
+        "points",
+        [],
+    )
 
     if points:
-        name = points[-1].get("customdata")
+        name = points[-1].get(
+            "customdata"
+        )
 
         if (
             name in GROUPS
@@ -785,26 +856,39 @@ def render_map(state_key, chart_key, chosen_ids=()):
 
 def show_legend(comparison=False):
     cards = "".join(
-        f'<span style="background:{background};'
-        f'color:{foreground};border:1px solid {foreground};'
-        f'padding:10px 13px;border-radius:10px;'
-        f'font-size:17px;font-weight:700;">'
-        f'위험도 {stage}단계</span>'
-        for stage, (background, foreground) in RISK_COLORS.items()
+        (
+            f'<span style="background:{background};'
+            f'color:{foreground};'
+            f'border:1px solid {foreground};'
+            'padding:10px 13px;'
+            'border-radius:10px;'
+            'font-size:17px;'
+            'font-weight:700;">'
+            f'위험도 {stage}단계'
+            '</span>'
+        )
+        for stage, (background, foreground)
+        in RISK_COLORS.items()
     )
 
     cards += (
-        '<span style="background:#7C3AED;color:white;'
-        'padding:10px 13px;border-radius:10px;'
-        'font-size:17px;font-weight:700;">'
-        '현재 선택한 공간</span>'
+        '<span style="background:#7C3AED;'
+        'color:white;'
+        'padding:10px 13px;'
+        'border-radius:10px;'
+        'font-size:17px;'
+        'font-weight:700;">'
+        '현재 선택한 공간'
+        '</span>'
     )
 
     st.markdown(
-        '<div style="display:flex;gap:9px;'
-        'flex-wrap:wrap;margin:8px 0 12px;">'
+        '<div style="display:flex;'
+        'gap:9px;'
+        'flex-wrap:wrap;'
+        'margin:8px 0 12px;">'
         + cards
-        + "</div>",
+        + '</div>',
         unsafe_allow_html=True,
     )
 
@@ -812,8 +896,3 @@ def show_legend(comparison=False):
         "자료 기준 · 공간별 위험도 단계의 평균값을 "
         "반올림해 색상으로 표시합니다."
     )
-
-    if comparison:
-        st.caption(
-            "점선 테두리: 비교에 담긴 공간"
-        )
