@@ -25,7 +25,6 @@ def show_hygiene_map():
         "아래에서 배양 사진과 동정 결과를 확인할 수 있습니다."
     )
 
-    # 지도를 좌우로 나누지 않고 전체 폭으로 표시
     st.subheader("📍 학교 공간 지도")
 
     show_legend()
@@ -35,14 +34,8 @@ def show_hygiene_map():
         "main_map_fullwidth_v3",
     )
 
-    st.caption(
-        "‘계단’ 기록은 본관 왼쪽 아래 계단에 "
-        "임시 연결했습니다."
-    )
-
     st.divider()
 
-    # 선택한 장소의 기록은 지도 아래에 표시
     st.subheader("🔎 선택한 공간의 전체 기록")
 
     place = st.session_state.get("active_map_place")
@@ -95,19 +88,6 @@ def show_hygiene_map():
             }
             for record in RESULTS.values()
         ])
-
-    st.caption(
-        "집락에 가려진 구역선은 보이는 부분의 "
-        "연장 방향으로 추정했습니다."
-    )
-
-    st.subheader("💡 결과 해석 안내")
-
-    st.write(
-        "같은 채취 방법과 배양 조건에서 얻은 결과끼리 비교합니다. "
-        "사진만으로 미생물의 종이나 병원성을 확정하거나 "
-        "장소 전체의 안전성을 판단하지 않습니다."
-    )
 
 
 page = st.navigation([
