@@ -17,8 +17,8 @@ BASE_DIR = Path(__file__).resolve().parent
 MAP_PATH = BASE_DIR / "school_map.png"
 
 
+# 장소 이름에 형광펜을 표시할 영역
 # 평면도 원본 818 × 560 기준
-# 장소 이름에 형광펜을 칠할 영역입니다.
 HIGHLIGHTS = {
     "운동장": (240, 71, 350, 101),
     "본관 왼쪽 위 계단": (53, 111, 104, 141),
@@ -43,7 +43,6 @@ HIGHLIGHTS = {
 
 
 # 지도 공간, 채취 대상, 플레이트 번호, 앞면 구역 번호
-# 4번 플레이트 3번 구역의 교무실 기록은 제외했습니다.
 SAMPLES = [
     ("엘리베이터", "엘리베이터", 1, 1),
     ("탐구 1실", "탐구1실 창고", 1, 2),
@@ -91,9 +90,8 @@ for place, target, plate, section in SAMPLES:
     })
 
 
-# 앞면 사진별 자르기 경계
-# 1600 × 1600으로 환산한 좌표입니다.
-# 순서: 배지 내부 타원, 구역선 교점, 위·오른쪽·아래·왼쪽 방향점
+# 사진별 배지 경계와 구역선 방향
+# 1600 × 1600으로 환산한 기준
 PHOTO_BOUNDS = {
     1: (
         (270, 300, 1370, 1390),
@@ -138,7 +136,6 @@ if st.session_state.get("active_map_place") not in RECORDS:
 
 
 def find_photo(plate):
-    """앞면 사진만 찾습니다."""
     stem = f"plate{plate}_front"
     extensions = {".jpg", ".jpeg", ".png", ".webp"}
 
@@ -175,13 +172,11 @@ def get_photo(plate):
 
 
 def crop_sector(image, plate, section):
-    """배지 밖을 투명하게 하고 해당 구역만 남깁니다."""
     width, height = image.size
     bounds, center, directions = PHOTO_BOUNDS[plate]
 
     sx = width / 1600
     sy = height / 1600
-
     cx = center[0] * sx
     cy = center[1] * sy
 
@@ -230,11 +225,7 @@ def crop_sector(image, plate, section):
         ))
 
     sector_mask = Image.new("L", image.size, 0)
-
-    ImageDraw.Draw(sector_mask).polygon(
-        points,
-        fill=255,
-    )
+    ImageDraw.Draw(sector_mask).polygon(points, fill=255)
 
     mask = ImageChops.multiply(dish_mask, sector_mask)
     mask = ImageChops.multiply(mask, image.getchannel("A"))
@@ -268,11 +259,6 @@ st.write(
     "해당 공간의 모든 배양 관찰 기록을 확인할 수 있습니다."
 )
 
-st.caption(
-    f"7개 플레이트 · {len(SAMPLES)}개 채취 기록 · "
-    "동정 결과는 확인 후 추가"
-)
-
 
 map_column, result_column = st.columns(
     [1.6, 1],
@@ -283,9 +269,40 @@ map_column, result_column = st.columns(
 with map_column:
     st.subheader("📍 학교 공간 지도")
 
-    st.caption(
-        "노란색: 관찰 기록이 있는 공간 · "
-        "초록색: 선택한 공간"
+    # 색상 안내를 큰 글씨와 색상 배경으로 표시합니다.
+    st.markdown(
+        """
+        <div style="
+            display:flex;
+            gap:12px;
+            flex-wrap:wrap;
+            margin:8px 0 18px;
+        ">
+            <div style="
+                background:#FFF1A8;
+                color:#514000;
+                border:2px solid #E8BD23;
+                border-radius:12px;
+                padding:12px 16px;
+                font-size:18px;
+                font-weight:700;
+            ">
+                🟨 관찰 기록이 있는 공간
+            </div>
+            <div style="
+                background:#C8F0D8;
+                color:#104D2C;
+                border:2px solid #43A66B;
+                border-radius:12px;
+                padding:12px 16px;
+                font-size:18px;
+                font-weight:700;
+            ">
+                🟩 선택한 공간
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     if not MAP_PATH.is_file():
@@ -332,7 +349,6 @@ with map_column:
             else:
                 color = "rgba(255, 219, 51, 0.30)"
 
-            # 글자가 보이도록 반투명 형광펜 표시
             figure.add_shape(
                 type="rect",
                 x0=left,
@@ -344,8 +360,7 @@ with map_column:
                 layer="above",
             )
 
-            # 형광펜 영역 전체를 클릭할 수 있도록
-            # 거의 투명한 클릭 지점을 촘촘하게 배치합니다.
+            # 형광펜 영역 전체에 투명한 클릭 지점을 배치
             for x in range(left, right + 1, 4):
                 for y in range(top, bottom + 1, 4):
                     click_x.append(x)
