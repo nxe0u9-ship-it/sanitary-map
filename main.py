@@ -3,6 +3,7 @@ import streamlit as st
 from school_data import (
     RESULTS,
     GROUPS,
+    RISK_RESULTS,
     render_map,
     show_legend,
     show_result_photo,
@@ -38,7 +39,9 @@ def show_hygiene_map():
 
     st.subheader("🔎 선택한 공간의 전체 기록")
 
-    place = st.session_state.get("active_map_place")
+    place = st.session_state.get(
+        "active_map_place"
+    )
 
     if not place:
         st.info(
@@ -76,32 +79,81 @@ def show_hygiene_map():
                         framed=True,
                     )
 
-                    show_identification(result_id)
+                    show_identification(
+                        result_id
+                    )
 
             st.divider()
 
     with st.expander("전체 채취 기록 확인"):
-        st.table([
-            {
-                "공간": record["place"],
-                "채취 대상": record["short"],
-            }
-            for record in RESULTS.values()
-        ])
+        risk_icons = {
+            1: "🔵",
+            2: "🟢",
+            3: "🟡",
+            4: "🟠",
+            5: "🔴",
+        }
+
+        sorted_ids = sorted(
+            RESULTS,
+            key=lambda result_id: (
+                RISK_RESULTS.get(
+                    result_id,
+                    (0, 0),
+                )[1],
+                RISK_RESULTS.get(
+                    result_id,
+                    (0, 0),
+                )[0],
+            ),
+            reverse=True,
+        )
+
+        rows = []
+
+        for result_id in sorted_ids:
+            record = RESULTS[result_id]
+            risk = RISK_RESULTS.get(result_id)
+
+            if risk is None:
+                risk_text = "미등록"
+                score_text = "—"
+
+            else:
+                score, stage = risk
+
+                risk_text = (
+                    f"{risk_icons[stage]} {stage}단계"
+                )
+
+                score_text = f"{score:.2f}"
+
+            rows.append(
+                {
+                    "공간": record["place"],
+                    "채취 대상": record["short"],
+                    "위험도": risk_text,
+                    "점수": score_text,
+                }
+            )
+
+        st.table(rows)
 
 
-page = st.navigation([
-    st.Page(
-        show_hygiene_map,
-        title="둔산여고 위생맵",
-        icon="🧫",
-        default=True,
-    ),
-    st.Page(
-        "pages/1_배양_결과_비교.py",
-        title="배양 결과 비교",
-        icon="🔬",
-    ),
-])
+page = st.navigation(
+    [
+        st.Page(
+            show_hygiene_map,
+            title="둔산여고 위생맵",
+            icon="🧫",
+            default=True,
+        ),
+        st.Page(
+            "pages/1_배양_결과_비교.py",
+            title="배양 결과 비교",
+            icon="🔬",
+        ),
+    ]
+)
 
 page.run()
