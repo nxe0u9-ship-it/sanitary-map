@@ -1,4 +1,5 @@
 from pathlib import Path
+from io import BytesIO
 import base64
 import math
 
@@ -238,7 +239,7 @@ RISK_RESULTS = {
 }
 
 
-# 등급 상자와 지도에서 함께 사용하는 색상
+# 배경색, 글자색
 RISK_COLORS = {
     1: ("#E8F2FF", "#184A7D"),
     2: ("#E3F4EE", "#205442"),
@@ -257,6 +258,7 @@ IDENTIFICATIONS = {
 }
 
 
+# 평면도 원본 818 × 560 기준 표시 영역
 HIGHLIGHTS = {
     "운동장": (240, 71, 350, 101),
     "본관 왼쪽 위 계단": (53, 111, 104, 141),
@@ -569,7 +571,6 @@ def show_result_photo(result_id, framed=False):
 
 
 def place_risk(place):
-    # 해당 공간의 모든 채취 대상에 대한 위험도 단계 평균
     stages = [
         RISK_RESULTS[result_id][1]
         for result_id in GROUPS[place]
@@ -581,21 +582,12 @@ def place_risk(place):
 
     average = sum(stages) / len(stages)
 
-    # 0.5 이상은 올림하는 반올림
     color_stage = min(
         5,
         max(1, math.floor(average + 0.5)),
     )
 
     return average, color_stage
-
-
-def hex_rgba(color, alpha):
-    red = int(color[1:3], 16)
-    green = int(color[3:5], 16)
-    blue = int(color[5:7], 16)
-
-    return f"rgba({red},{green},{blue},{alpha})"
 
 
 def render_map(state_key, chart_key, chosen_ids=()):
@@ -608,8 +600,35 @@ def render_map(state_key, chart_key, chosen_ids=()):
         st.error("학교 지도 사진을 찾지 못했습니다.")
         return
 
+    with Image.open(path) as source:
+        map_image = source.convert("RGB").resize((818, 560))
+
+    # 검은 글씨는 유지하면서 밝은 배경만 물들이는 색상 레이어
+    tint = Image.new("RGB", map_image.size, "white")
+    tint_draw = ImageDraw.Draw(tint)
+
+    for name, bounds in HIGHLIGHTS.items():
+        _, stage = place_risk(name)
+
+        if name == st.session_state[state_key]:
+            color = "#E9D5FF"
+        elif stage is not None:
+            color = RISK_COLORS[stage][0]
+        else:
+            color = "#E5E7EB"
+
+        tint_draw.rectangle(bounds, fill=color)
+
+    colored_map = ImageChops.multiply(
+        map_image,
+        tint,
+    )
+
+    buffer = BytesIO()
+    colored_map.save(buffer, format="PNG")
+
     encoded = base64.b64encode(
-        path.read_bytes()
+        buffer.getvalue()
     ).decode("ascii")
 
     fig = go.Figure()
@@ -640,32 +659,21 @@ def render_map(state_key, chart_key, chosen_ids=()):
         left, top, right, bottom = bounds
         average, stage = place_risk(name)
 
-        # 현재 선택한 공간은 위험도 색보다 파란색을 우선 적용
         if name == st.session_state[state_key]:
-            fill = "rgba(59,130,246,0.36)"
-
             line = {
-                "color": "#2563EB",
-                "width": 2,
+                "color": "#7C3AED",
+                "width": 2.5,
+            }
+
+        elif name in chosen_places:
+            line = {
+                "color": "#475569",
+                "width": 1.5,
+                "dash": "dot",
             }
 
         else:
-            if stage is not None:
-                fill = hex_rgba(
-                    RISK_COLORS[stage][0],
-                    0.82,
-                )
-            else:
-                fill = "rgba(220,220,220,0.5)"
-
-            if name in chosen_places:
-                line = {
-                    "color": "#475569",
-                    "width": 1.5,
-                    "dash": "dot",
-                }
-            else:
-                line = {"width": 0}
+            line = {"width": 0}
 
         fig.add_shape(
             type="rect",
@@ -673,7 +681,7 @@ def render_map(state_key, chart_key, chosen_ids=()):
             y0=top,
             x1=right,
             y1=bottom,
-            fillcolor=fill,
+            fillcolor="rgba(0,0,0,0)",
             line=line,
             layer="above",
         )
@@ -749,7 +757,7 @@ def render_map(state_key, chart_key, chosen_ids=()):
     event = st.plotly_chart(
         fig,
         use_container_width=True,
-        key=f"{chart_key}_risk_v4",
+        key=f"{chart_key}_purple_v5",
         on_select="rerun",
         selection_mode="points",
         config={
@@ -786,7 +794,7 @@ def show_legend(comparison=False):
     )
 
     cards += (
-        '<span style="background:#2563EB;color:white;'
+        '<span style="background:#7C3AED;color:white;'
         'padding:10px 13px;border-radius:10px;'
         'font-size:17px;font-weight:700;">'
         '현재 선택한 공간</span>'
