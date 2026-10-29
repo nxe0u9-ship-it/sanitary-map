@@ -10,20 +10,148 @@ import streamlit as st
 BASE_DIR = Path(__file__).resolve().parent
 
 
-# 동정 결과가 나오면 여기에 등록합니다.
-# 예를 들어 "1_1"은 1번 플레이트의 1번 구역입니다.
-#
-# 입력 항목:
-# name: 동정 결과명
-# scientific_name: 학명
-# status: 추정 동정 / 확인 동정 등 확인 수준
-# evidence: 동정 근거
-# notes: 추가 설명
-#
-# 아직 실제 결과를 받지 않았으므로 비워둡니다.
-IDENTIFICATIONS = {}
+# 각 행: 구분, 관찰 특징, 학명, 미생물의 일반 특징
+IDENTIFICATIONS = {
+    "1_1": [
+        ("A", "검은색의 굵고 둥근 집락", "Aspergillus niger", "검은 포자층을 만들 수 있는 곰팡이"),
+        ("B", "자주빛이 섞인 흑갈색 원형 집락", "Cladosporium cladosporioides", "올리브색·암갈색의 벨벳형 집락을 만들 수 있음"),
+        ("C", "주변의 옅은 회백색 솜털", "Mucor circinelloides", "빠르게 퍼지는 흰색·회색 균사 형태"),
+    ],
+    "1_2": [
+        ("A", "어두운 회흑색의 불규칙한 덩어리", "Cladosporium cladosporioides", "짙은 올리브색·갈색의 분말형 표면"),
+        ("B", "부분적으로 솟은 흰 솜털", "Mucor circinelloides", "공중으로 자라는 솜털 모양 균사"),
+        ("C", "작고 짙은 원형 부분", "Aspergillus niger", "성숙할수록 검게 보이는 포자층"),
+    ],
+    "1_3": [
+        ("A", "청록색·회녹색의 작은 둥근 집락", "Penicillium rubens", "청록색 계열의 포자 형성"),
+        ("B", "검은 올리브색의 둥근 집락", "Cladosporium cladosporioides", "짙고 벨벳 같은 집락"),
+        ("C", "흰색·연분홍빛의 작은 솜털", "Fusarium oxysporum", "일부 조건에서 분홍빛을 띠는 균사"),
+    ],
+    "1_4": [
+        ("A", "넓고 흰색인 구름·솜털 모양", "Mucor circinelloides", "솜털형 균사가 넓게 퍼질 수 있음"),
+        ("B", "작고 어두운 회흑색 원형", "Aspergillus niger", "검은 포자층과 원형 성장 모습"),
+        ("C", "외곽의 회색·올리브색 고리", "Cladosporium cladosporioides", "올리브색·갈색의 어두운 표면"),
+    ],
+    "2_1": [
+        ("A", "넓게 덮인 회백색 솜털", "Mucor circinelloides", "회백색으로 퍼지는 빠른 균사 성장"),
+        ("B", "솜털 속 검은 점과 짙은 둥근 부분", "Rhizopus stolonifer", "검게 보이는 포자낭을 만들 수 있음"),
+    ],
+    "2_2": [
+        ("A", "회갈색의 넓고 흐릿한 솜털", "Alternaria alternata", "갈색·회색·검정 계열의 포자층"),
+        ("B", "독립된 검은 둥근 집락", "Aspergillus niger", "검은 포자를 빽빽하게 형성할 수 있음"),
+        ("C", "작은 회흑색 점들이 모인 부분", "Cladosporium cladosporioides", "짙은 색의 촘촘한 균총"),
+    ],
+    "2_3": [
+        ("A", "빽빽한 어두운 올리브색 원형들", "Cladosporium cladosporioides", "올리브색·흑갈색의 벨벳형 표면"),
+        ("B", "가느다란 흰색 솜털 덩어리", "Mucor circinelloides", "희고 부드러운 균사 성장"),
+        ("C", "회갈색의 옅은 번짐", "Alternaria alternata", "어두운 갈색의 확산성 집락"),
+    ],
+    "2_4": [
+        ("A", "넓게 퍼진 회색 솜털층", "Rhizopus stolonifer", "균사가 넓게 퍼진 뒤 어두워질 수 있음"),
+        ("B", "검고 둥근 조밀한 부분", "Aspergillus niger", "검은색 포자가 밀집한 외형"),
+        ("C", "군데군데 작은 흰 솜털", "Mucor circinelloides", "밝은색의 푹신한 균사 형태"),
+    ],
+    "3_1": [
+        ("A", "매우 크게 뭉친 짙은 검은색 집락", "Aspergillus niger", "검게 성숙하는 포자층"),
+        ("B", "경계에 섞인 회백색 솜털", "Mucor circinelloides", "흰색·회색의 성긴 솜털형 균사"),
+    ],
+    "3_2": [
+        ("A", "진한 올리브·회녹색 원형", "Cladosporium cladosporioides", "올리브색의 둥글고 벨벳 같은 외형"),
+        ("B", "흑색 중심이 있는 작은 원형", "Aspergillus niger", "짙은 색의 포자층"),
+        ("C", "그 사이 흰색 솜털 부분", "Mucor circinelloides", "희게 퍼지는 솜털 모양 균사"),
+    ],
+    "3_3": [
+        ("A", "큰 흰색 솜털형 덩어리", "Mucor circinelloides", "넓게 퍼지는 백색 균사"),
+        ("B", "약한 분홍빛·연보랏빛의 작은 부분", "Fusarium oxysporum", "일부 배지에서 분홍색 색소를 나타냄"),
+        ("C", "회흑색의 작은 둥근 집락", "Cladosporium cladosporioides", "어두운 벨벳형 곰팡이 집락"),
+    ],
+    "3_4": [
+        ("A", "넓은 회백색 솜털형 층", "Rhizopus stolonifer", "흰 균사와 어두운 포자낭을 형성"),
+        ("B", "따로 보이는 검은 원형", "Aspergillus niger", "검은 분말형 포자층"),
+        ("C", "붉은빛·연갈색 고리 모양", "Fusarium oxysporum", "조건에 따라 연분홍색 색소를 형성"),
+    ],
+    "4_1": [
+        ("A", "흰 거미줄처럼 가늘게 뻗는 층", "Mucor circinelloides", "가느다란 균사가 솜털처럼 확장"),
+        ("B", "작고 짙은 올리브색 원형", "Cladosporium cladosporioides", "짙은 벨벳형 집락"),
+    ],
+    "4_2": [
+        ("A", "유난히 큰 검은색 원형", "Aspergillus niger", "검고 빽빽한 포자층"),
+        ("B", "주변의 회백색 솜털 번짐", "Mucor circinelloides", "백색·회색으로 뻗는 균사"),
+        ("C", "소규모 흰색 돌기 모양", "Bacillus subtilis", "흰색·크림색의 둥글거나 주름진 집락 가능"),
+    ],
+    # 기존 요청대로 지도와 비교 대상에서는 제외한 교무실 기록
+    "4_3": [
+        ("A", "넓은 갈색의 미세한 가루 같은 층", "Alternaria alternata", "갈색~흑갈색의 포자 형성"),
+        ("B", "동심원 고리·주름 무늬", "Aspergillus niger", "성장 조건에 따라 표면 무늬가 생길 수 있음"),
+        ("C", "회검은 원형의 작은 덩어리", "Cladosporium cladosporioides", "회갈색·올리브색의 조밀한 외형"),
+    ],
+    "4_4": [
+        ("A", "흰 레이스처럼 넓게 뻗은 솜털", "Rhizopus stolonifer", "가늘고 빠르게 성장하는 솜털형 균사"),
+        ("B", "어두운 회흑색 원형·얼룩", "Cladosporium cladosporioides", "짙은 올리브색의 집락"),
+    ],
+    "5_1": [
+        ("A", "가장자리에서 나뭇가지처럼 뻗는 흰 성장 무늬", "Bacillus mycoides", "뿌리·나뭇가지 같은 세균 집락"),
+        ("B", "넓은 회갈색의 흐릿한 층", "Alternaria alternata", "어두운 갈색 계열의 퍼지는 집락"),
+        ("C", "독립된 흑회색 작은 원형", "Cladosporium cladosporioides", "어두운색의 조밀한 집락"),
+    ],
+    "5_2": [
+        ("A", "크고 두꺼운 흰색의 꽃잎 모양 주름", "Bacillus subtilis", "건조하고 깊게 주름진 집락이 가능"),
+        ("B", "작고 선명한 노란색 원형 점", "Micrococcus luteus", "노란색·크림색의 둥근 집락 가능"),
+        ("C", "별도로 보이는 짙은 회색 원형", "Cladosporium cladosporioides", "회갈색·올리브색의 벨벳형 표면"),
+    ],
+    "5_3": [
+        ("A", "회녹색·청록색 원형", "Penicillium rubens", "푸른빛·녹색 포자를 만들 수 있음"),
+        ("B", "흰색 솜털 뭉치", "Mucor circinelloides", "흰색의 성긴 균사층"),
+        ("C", "회갈색의 점·가루 모양 층", "Alternaria alternata", "갈색의 포자층을 형성"),
+    ],
+    "5_4": [
+        ("A", "갈색으로 넓게 퍼진 가루형 집락", "Alternaria alternata", "회갈색~흑갈색 계열의 포자층"),
+        ("B", "외곽의 가는 흰색 솜털", "Mucor circinelloides", "밝고 성긴 솜털 모양 균사"),
+        ("C", "작은 짙은색 원형 점들", "Cladosporium cladosporioides", "조밀한 회흑색·올리브색 집락"),
+    ],
+    "6_1": [
+        ("A", "크고 밝은 흰색의 나뭇가지형 가지", "Bacillus mycoides", "균락이 나뭇가지처럼 분지하며 퍼짐"),
+        ("B", "가장자리의 작은 짙은 회색 점", "Cladosporium cladosporioides", "어두운 벨벳형 표면"),
+    ],
+    "6_2": [
+        ("A", "어두운 회녹색의 벨벳형 원형", "Cladosporium cladosporioides", "회녹색·올리브색의 조밀한 균총"),
+        ("B", "옅고 넓게 퍼진 회백색 층", "Mucor circinelloides", "흰색·회색의 솜털 모양 균사"),
+        ("C", "일부 진한 흑색 작은 원형", "Aspergillus niger", "검은 포자층을 형성"),
+    ],
+    "6_3": [
+        ("A", "두껍고 하얀 주름·방사형 성장", "Bacillus subtilis", "마른 표면에 주름을 이루는 세균 집락"),
+        ("B", "희미한 넓은 회색 균사", "Mucor circinelloides", "넓게 퍼지는 성긴 균사층"),
+        ("C", "분리된 작고 검은 둥근 부분", "Aspergillus niger", "조밀한 흑색 포자층"),
+    ],
+    "6_4": [
+        ("A", "흰색·크림색의 솜털형 번짐", "Rhizopus stolonifer", "희고 솜털 같은 균사와 포자낭"),
+        ("B", "뚜렷한 검은 둥근 집락 여러 개", "Aspergillus niger", "검게 보이는 포자층"),
+        ("C", "주변 회색의 옅은 원형", "Cladosporium cladosporioides", "올리브색·회흑색의 벨벳형 집락"),
+    ],
+    "7_1": [
+        ("A", "회녹색의 둥근 집락 여러 개", "Cladosporium cladosporioides", "올리브색·회녹색의 벨벳형 집락"),
+        ("B", "어두운 테두리와 중심이 있는 원형", "Aspergillus niger", "검게 성숙하는 포자층"),
+        ("C", "일부 연한 회백색 가장자리", "Penicillium rubens", "녹색 포자와 연한 바깥 균사"),
+    ],
+    "7_2": [
+        ("A", "매우 큰 하얀 솜털 덩어리", "Mucor circinelloides", "희고 성긴 솜털형 균사"),
+        ("B", "아래쪽의 깊은 회흑색 둥근 집락", "Aspergillus niger", "짙은 포자층"),
+        ("C", "연갈색의 작고 둥근 부분", "Alternaria alternata", "갈색·회색 계열의 집락"),
+    ],
+    "7_3": [
+        ("A", "짙은 회녹색·올리브색 원형들", "Cladosporium cladosporioides", "올리브색의 조밀한 벨벳형 표면"),
+        ("B", "흰 중심·옅은 솜털이 섞인 원형", "Penicillium rubens", "녹색 포자층 주변의 흰색 균사"),
+        ("C", "부분적으로 짙은 갈색·검은색", "Aspergillus niger", "검은 포자를 빽빽하게 형성할 수 있음"),
+    ],
+    "7_4": [
+        ("A", "윤기 있는 황갈색·크림색 주름 부분", "Aureobasidium pullulans", "크림색에서 짙게 변하는 점액성 집락 가능"),
+        ("B", "널리 퍼진 짙은 회흑색 가루형 층", "Alternaria alternata", "갈색~검은색의 포자층"),
+        ("C", "분리된 작고 어두운 둥근 집락", "Cladosporium cladosporioides", "짙은 올리브·회흑색의 조밀한 형태"),
+    ],
+}
 
 
+# 평면도 원본 818 × 560 기준
 HIGHLIGHTS = {
     "운동장": (240, 71, 350, 101),
     "본관 왼쪽 위 계단": (53, 111, 104, 141),
@@ -47,36 +175,31 @@ HIGHLIGHTS = {
 }
 
 
+# 공간, 채취 대상, 플레이트 번호, 구역 번호
 SAMPLES = [
     ("엘리베이터", "엘리베이터", 1, 1),
     ("탐구 1실", "탐구1실 창고", 1, 2),
     ("본관 왼쪽 아래 계단", "계단", 1, 3),
     ("신관 소그룹 1실", "신관", 1, 4),
-
     ("남자화장실", "남자화장실 손잡이", 2, 1),
     ("현관", "1층 거울", 2, 2),
     ("현관", "우산꽂이", 2, 3),
     ("학습 도움실", "학습도움실", 2, 4),
-
     ("교무 1실", "1층 본부교무실", 3, 1),
     ("운동장", "담 철창살", 3, 2),
     ("중앙정원", "중앙정원 벤치", 3, 3),
     ("운동장", "운동장 체육부품실 손잡이", 3, 4),
-
     ("보건실 앞 복도", "보건실쪽 신발장", 4, 1),
     ("분리수거장", "분리수거장", 4, 2),
     ("중앙정원", "중앙정원 식물", 4, 4),
-
     ("당직실", "당직실 책상", 5, 1),
     ("서고", "서고", 5, 2),
     ("탐구 1실", "탐구1실 싱크대", 5, 3),
     ("본관 오른쪽 위 계단", "남자화장실 옆 히터", 5, 4),
-
     ("여자화장실", "화장실 수도꼭지", 6, 1),
     ("여자화장실", "변기", 6, 2),
     ("여자화장실", "화장실 세면대", 6, 3),
     ("여자화장실", "화장실 문 손잡이", 6, 4),
-
     ("현관", "내빈용 실내화", 7, 1),
     ("보건실", "보건실", 7, 2),
     ("행정실", "행정실", 7, 3),
@@ -95,40 +218,34 @@ SHORT_NAMES = [
 ]
 
 
+# 앞면 사진을 1600 × 1600으로 환산한 자르기 기준
 PHOTO_BOUNDS = {
     1: (
-        (270, 300, 1370, 1390),
-        (780, 850),
+        (270, 300, 1370, 1390), (780, 850),
         ((720, 330), (1320, 900), (980, 1380), (310, 810)),
     ),
     2: (
-        (170, 285, 1330, 1420),
-        (768, 870),
+        (170, 285, 1330, 1420), (768, 870),
         ((780, 300), (1320, 885), (730, 1410), (180, 970)),
     ),
     3: (
-        (300, 280, 1400, 1400),
-        (850, 750),
+        (300, 280, 1400, 1400), (850, 750),
         ((700, 280), (1390, 740), (980, 1390), (300, 760)),
     ),
     4: (
-        (280, 175, 1385, 1320),
-        (900, 770),
+        (280, 175, 1385, 1320), (900, 770),
         ((900, 180), (1380, 785), (830, 1320), (290, 760)),
     ),
     5: (
-        (160, 170, 1430, 1375),
-        (880, 800),
+        (160, 170, 1430, 1375), (880, 800),
         ((870, 175), (1430, 825), (820, 1370), (170, 750)),
     ),
     6: (
-        (260, 290, 1400, 1400),
-        (790, 810),
+        (260, 290, 1400, 1400), (790, 810),
         ((800, 300), (1390, 740), (800, 1390), (270, 835)),
     ),
     7: (
-        (210, 185, 1420, 1430),
-        (835, 820),
+        (210, 185, 1420, 1430), (835, 820),
         ((780, 195), (1410, 780), (840, 1420), (220, 890)),
     ),
 }
@@ -220,7 +337,10 @@ def crop_sector(image, plate, section):
 
     def direction_angle(index):
         x, y = directions[index]
-        return math.atan2(y * sy - cy, x * sx - cx)
+        return math.atan2(
+            y * sy - cy,
+            x * sx - cx,
+        )
 
     start = direction_angle(first)
     end = direction_angle(last)
@@ -233,6 +353,7 @@ def crop_sector(image, plate, section):
 
     for step in range(91):
         angle = start + (end - start) * step / 90
+
         points.append((
             cx + reach * math.cos(angle),
             cy + reach * math.sin(angle),
@@ -241,8 +362,15 @@ def crop_sector(image, plate, section):
     sector_mask = Image.new("L", image.size, 0)
     ImageDraw.Draw(sector_mask).polygon(points, fill=255)
 
-    mask = ImageChops.multiply(dish_mask, sector_mask)
-    mask = ImageChops.multiply(mask, image.getchannel("A"))
+    mask = ImageChops.multiply(
+        dish_mask,
+        sector_mask,
+    )
+
+    mask = ImageChops.multiply(
+        mask,
+        image.getchannel("A"),
+    )
 
     box = mask.getbbox()
 
@@ -257,7 +385,12 @@ def crop_sector(image, plate, section):
 
 def make_display_photo(image):
     fitted = ImageOps.contain(image, (560, 560))
-    canvas = Image.new("RGBA", (600, 600), (0, 0, 0, 0))
+
+    canvas = Image.new(
+        "RGBA",
+        (600, 600),
+        (0, 0, 0, 0),
+    )
 
     canvas.alpha_composite(
         fitted,
@@ -281,27 +414,27 @@ def display_name(record):
 
 
 def show_identification(result_id):
-    result = IDENTIFICATIONS.get(result_id)
+    rows = IDENTIFICATIONS.get(result_id, [])
 
     st.markdown("**동정 결과**")
 
-    if not result:
+    if not rows:
         st.caption("아직 등록되지 않았습니다.")
         return
 
-    st.write(result.get("name") or "결과명 미입력")
+    for label, observation, scientific_name, general_trait in rows:
+        st.markdown(
+            f"**{label}** · *{scientific_name}*"
+        )
 
-    if result.get("scientific_name"):
-        st.write(f"학명: {result['scientific_name']}")
+        st.write(
+            f"관찰 특징: {observation}"
+        )
 
-    if result.get("status"):
-        st.caption(f"확인 수준: {result['status']}")
-
-    if result.get("evidence"):
-        st.caption(f"근거: {result['evidence']}")
-
-    if result.get("notes"):
-        st.caption(result["notes"])
+        with st.expander(
+            f"{label} 미생물의 일반 특징"
+        ):
+            st.write(general_trait)
 
 
 def show_result_photo(result_id, framed=False):
@@ -329,7 +462,9 @@ def show_result_photo(result_id, framed=False):
         )
 
     except (OSError, ValueError) as error:
-        st.error(f"사진을 표시하지 못했습니다: {error}")
+        st.error(
+            f"사진을 표시하지 못했습니다: {error}"
+        )
 
 
 def render_map(state_key, chart_key, chosen_ids=()):
@@ -423,7 +558,12 @@ def render_map(state_key, chart_key, chosen_ids=()):
 
     fig.update_layout(
         height=570,
-        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        margin={
+            "l": 0,
+            "r": 0,
+            "t": 0,
+            "b": 0,
+        },
         showlegend=False,
         clickmode="event+select",
         dragmode=False,
@@ -446,7 +586,6 @@ def render_map(state_key, chart_key, chosen_ids=()):
         plot_bgcolor="white",
     )
 
-    # 현재 클릭으로 반환된 선택값을 즉시 처리합니다.
     event = st.plotly_chart(
         fig,
         use_container_width=True,
@@ -460,7 +599,10 @@ def render_map(state_key, chart_key, chosen_ids=()):
         },
     )
 
-    points = event.get("selection", {}).get("points", [])
+    points = event.get(
+        "selection",
+        {},
+    ).get("points", [])
 
     if points:
         name = points[-1].get("customdata")
@@ -470,8 +612,6 @@ def render_map(state_key, chart_key, chosen_ids=()):
             and name != st.session_state[state_key]
         ):
             st.session_state[state_key] = name
-
-            # 추가 클릭 없이 색상과 결과를 함께 갱신합니다.
             st.rerun()
 
 
