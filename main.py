@@ -17,13 +17,13 @@ BASE_DIR = Path(__file__).resolve().parent
 MAP_PATH = BASE_DIR / "school_map.png"
 
 
-# 관찰 기록이 있는 공간만 표시합니다.
+# 관찰 기록이 있는 공간만 지도에 표시합니다.
 PLACES = {
     "운동장": (36, 21),
     "본관 왼쪽 위 계단": (5, 23),
     "본관 오른쪽 위 계단": (67, 20),
     "보건실": (23, 33),
-    "보건실 앞 복도": (26, 44),
+    "보건실 앞 복도": (26, 25),
     "교무 1실": (39, 33),
     "당직실": (48, 33),
     "남자화장실": (67, 30),
@@ -42,9 +42,9 @@ PLACES = {
 
 
 # 지도 공간, 채취 대상, 플레이트 번호, 앞면 구역 번호
-# 구역 번호: 왼쪽 위 1, 오른쪽 위 2,
+# 앞면 기준: 왼쪽 위 1, 오른쪽 위 2,
 #            왼쪽 아래 3, 오른쪽 아래 4
-# 4번 플레이트 3번 구역의 교무실 기록은 제외했습니다.
+# 4번 플레이트 3번 구역의 교무실은 제외했습니다.
 SAMPLES = [
     ("엘리베이터", "엘리베이터", 1, 1),
     ("탐구 1실", "탐구1실 창고", 1, 2),
@@ -92,25 +92,88 @@ for place, target, plate, section in SAMPLES:
     })
 
 
-# 원본 사진을 확인하기 전의 기본값입니다.
-# 중심 위치: 사진 너비·높이에 대한 백분율
-# 반지름: 사진의 짧은 변에 대한 백분율
-# 구역선 교점: 배지 중심에서 벗어난 정도
-DEFAULT_CROP = {
-    "cx": 50.0,
-    "cy": 50.0,
-    "rx": 46.0,
-    "ry": 46.0,
-    "split_x": 0.0,
-    "split_y": 0.0,
-    "angle": 0.0,
+# 실제 앞면 사진을 보고 정한 사진별 자르기 좌표입니다.
+# 좌표는 사진을 1600 × 1600으로 환산한 기준입니다.
+#
+# 각 항목:
+# 1. 배지 내부의 타원 경계
+# 2. 구역선이 만나는 지점
+# 3. 위쪽, 오른쪽, 아래쪽, 왼쪽 구역선의 방향점
+#
+# 집락으로 가려진 선은 보이는 부분의 연장 방향으로 추정했습니다.
+PHOTO_BOUNDS = {
+    1: (
+        (270, 300, 1370, 1390),
+        (780, 850),
+        (
+            (720, 330),
+            (1320, 900),
+            (980, 1380),
+            (310, 810),
+        ),
+    ),
+    2: (
+        (170, 285, 1330, 1420),
+        (768, 870),
+        (
+            (780, 300),
+            (1320, 885),
+            (730, 1410),
+            (180, 970),
+        ),
+    ),
+    3: (
+        (300, 280, 1400, 1400),
+        (850, 750),
+        (
+            (700, 280),
+            (1390, 740),
+            (980, 1390),
+            (300, 760),
+        ),
+    ),
+    4: (
+        (280, 175, 1385, 1320),
+        (900, 770),
+        (
+            (900, 180),
+            (1380, 785),
+            (830, 1320),
+            (290, 760),
+        ),
+    ),
+    5: (
+        (160, 170, 1430, 1375),
+        (880, 800),
+        (
+            (870, 175),
+            (1430, 825),
+            (820, 1370),
+            (170, 750),
+        ),
+    ),
+    6: (
+        (260, 290, 1400, 1400),
+        (790, 810),
+        (
+            (800, 300),
+            (1390, 740),
+            (800, 1390),
+            (270, 835),
+        ),
+    ),
+    7: (
+        (210, 185, 1420, 1430),
+        (835, 820),
+        (
+            (780, 195),
+            (1410, 780),
+            (840, 1420),
+            (220, 890),
+        ),
+    ),
 }
 
-if "plate_crop_settings" not in st.session_state:
-    st.session_state.plate_crop_settings = {
-        plate: DEFAULT_CROP.copy()
-        for plate in range(1, 8)
-    }
 
 if st.session_state.get("active_map_place") not in RECORDS:
     st.session_state.active_map_place = None
@@ -153,55 +216,63 @@ def get_photo(plate):
     )
 
 
-def crop_sector(image, section, settings):
-    """둥근 배지 안에서 선택한 구역만 남깁니다."""
+def crop_sector(image, plate, section):
+    """사진별 배지 경계와 구역선 방향을 적용합니다."""
     width, height = image.size
-    short_side = min(width, height)
+    bounds, center, directions = PHOTO_BOUNDS[plate]
 
-    cx = width * settings["cx"] / 100
-    cy = height * settings["cy"] / 100
+    sx = width / 1600
+    sy = height / 1600
 
-    rx = short_side * settings["rx"] / 100
-    ry = short_side * settings["ry"] / 100
+    cx = center[0] * sx
+    cy = center[1] * sy
 
-    split_x = cx + short_side * settings["split_x"] / 100
-    split_y = cy + short_side * settings["split_y"] / 100
-
-    # 배지 바깥을 투명하게 만드는 마스크
+    # 배지 밖의 바닥을 제거하는 마스크
     dish_mask = Image.new("L", image.size, 0)
-    dish_draw = ImageDraw.Draw(dish_mask)
 
-    dish_draw.ellipse(
-        (cx - rx, cy - ry, cx + rx, cy + ry),
+    ImageDraw.Draw(dish_mask).ellipse(
+        (
+            bounds[0] * sx,
+            bounds[1] * sy,
+            bounds[2] * sx,
+            bounds[3] * sy,
+        ),
         fill=255,
     )
 
-    # 화면 좌표에서는 아래쪽이 양의 y 방향입니다.
-    angle_ranges = {
-        1: (180, 270),
-        2: (270, 360),
-        3: (90, 180),
-        4: (0, 90),
+    # 방향점 번호: 위 0, 오른쪽 1, 아래 2, 왼쪽 3
+    ray_pairs = {
+        1: (3, 0),
+        2: (0, 1),
+        3: (2, 3),
+        4: (1, 2),
     }
 
-    start, end = angle_ranges[section]
-    rotation = settings["angle"]
-    reach = math.hypot(width, height) * 4
+    first, last = ray_pairs[section]
 
-    points = [(split_x, split_y)]
+    def direction_angle(index):
+        x, y = directions[index]
 
-    for step in range(61):
-        degrees = (
-            start
-            + (end - start) * step / 60
-            + rotation
+        return math.atan2(
+            y * sy - cy,
+            x * sx - cx,
         )
 
-        radians = math.radians(degrees)
+    start = direction_angle(first)
+    end = direction_angle(last)
+
+    while end <= start:
+        end += 2 * math.pi
+
+    reach = math.hypot(width, height) * 4
+    points = [(cx, cy)]
+
+    for step in range(91):
+        angle = start + (end - start) * step / 90
 
         points.append((
-            split_x + reach * math.cos(radians),
-            split_y + reach * math.sin(radians),
+            cx + reach * math.cos(angle),
+            cy + reach * math.sin(angle),
         ))
 
     sector_mask = Image.new("L", image.size, 0)
@@ -211,7 +282,7 @@ def crop_sector(image, section, settings):
         fill=255,
     )
 
-    # 배지 내부와 선택한 구역이 겹치는 부분만 유지
+    # 배지 안쪽이면서 해당 구역인 부분만 유지
     mask = ImageChops.multiply(
         dish_mask,
         sector_mask,
@@ -222,18 +293,17 @@ def crop_sector(image, section, settings):
         image.getchannel("A"),
     )
 
-    bounds = mask.getbbox()
+    box = mask.getbbox()
 
-    if bounds is None:
+    if box is None:
         raise ValueError(
-            "사진과 겹치는 영역이 없습니다. "
-            "사진 자르기 조정값을 확인해주세요."
+            "사진 자르기 영역을 확인해주세요."
         )
 
     result = image.copy()
     result.putalpha(mask)
 
-    return result.crop(bounds)
+    return result.crop(box)
 
 
 def handle_map_selection():
@@ -265,153 +335,6 @@ st.caption(
     f"7개 플레이트 · {len(SAMPLES)}개 채취 기록 · "
     "동정 결과는 확인 후 추가"
 )
-
-
-with st.expander(
-    "사진 자르기 조정 · 배지 경계와 구역선 맞추기",
-    expanded=False,
-):
-    st.caption(
-        "배지가 잘리거나 바닥이 보일 때 조정해주세요. "
-        "조정값은 현재 접속 세션 동안 유지됩니다."
-    )
-
-    edit_plate = st.selectbox(
-        "조정할 플레이트",
-        options=list(range(1, 8)),
-        format_func=lambda number: f"{number}번 플레이트",
-    )
-
-    settings = (
-        st.session_state.plate_crop_settings[edit_plate]
-    )
-
-    controls = [
-        ("cx", "배지 중심 좌우", 0.0, 100.0),
-        ("cy", "배지 중심 위아래", 0.0, 100.0),
-        ("rx", "배지 가로 반지름", 5.0, 100.0),
-        ("ry", "배지 세로 반지름", 5.0, 100.0),
-        (
-            "split_x",
-            "구역선 교점 좌우 이동",
-            -40.0,
-            40.0,
-        ),
-        (
-            "split_y",
-            "구역선 교점 위아래 이동",
-            -40.0,
-            40.0,
-        ),
-        ("angle", "구역선 회전 각도", -45.0, 45.0),
-    ]
-
-    control_column, preview_column = st.columns(2)
-
-    with control_column:
-        for field, label, minimum, maximum in controls:
-            settings[field] = st.slider(
-                label,
-                min_value=minimum,
-                max_value=maximum,
-                value=float(settings[field]),
-                step=0.5,
-                key=f"crop_{edit_plate}_{field}",
-            )
-
-    with preview_column:
-        try:
-            original = get_photo(edit_plate)
-
-            if original is None:
-                st.warning(
-                    f"plate{edit_plate}_front "
-                    "사진이 없습니다."
-                )
-
-            else:
-                preview = original.convert("RGB")
-                width, height = preview.size
-                short_side = min(width, height)
-
-                cx = width * settings["cx"] / 100
-                cy = height * settings["cy"] / 100
-
-                rx = short_side * settings["rx"] / 100
-                ry = short_side * settings["ry"] / 100
-
-                split_x = (
-                    cx
-                    + short_side
-                    * settings["split_x"]
-                    / 100
-                )
-
-                split_y = (
-                    cy
-                    + short_side
-                    * settings["split_y"]
-                    / 100
-                )
-
-                draw = ImageDraw.Draw(preview)
-
-                line_width = max(
-                    2,
-                    round(short_side / 250),
-                )
-
-                draw.ellipse(
-                    (
-                        cx - rx,
-                        cy - ry,
-                        cx + rx,
-                        cy + ry,
-                    ),
-                    outline="#00DD77",
-                    width=line_width,
-                )
-
-                reach = math.hypot(width, height) * 2
-
-                for degrees in (0, 90, 180, 270):
-                    radians = math.radians(
-                        degrees + settings["angle"]
-                    )
-
-                    draw.line(
-                        [
-                            (split_x, split_y),
-                            (
-                                split_x
-                                + reach * math.cos(radians),
-                                split_y
-                                + reach * math.sin(radians),
-                            ),
-                        ],
-                        fill="#FF6600",
-                        width=line_width,
-                    )
-
-                st.image(
-                    preview,
-                    caption=(
-                        "초록색: 배지 경계 / "
-                        "주황색: 구역선"
-                    ),
-                    use_container_width=True,
-                )
-
-                st.caption(
-                    "초록색은 배지 안쪽 테두리에, "
-                    "주황색은 사진에 비치는 구역선에 "
-                    "맞춰주세요."
-                )
-
-        except (OSError, ValueError):
-            st.error(
-                "미리보기 사진을 읽지 못했습니다."
-            )
 
 
 map_column, result_column = st.columns(
@@ -478,8 +401,7 @@ with map_column:
                 text=[
                     (
                         f"{name}<br>"
-                        f"채취 기록 "
-                        f"{len(RECORDS[name])}개"
+                        f"채취 기록 {len(RECORDS[name])}개"
                     )
                     for name in names
                 ],
@@ -532,9 +454,7 @@ with map_column:
                 "visible": False,
                 "fixedrange": True,
                 "scaleanchor": "x",
-                "scaleratio": (
-                    map_height / map_width
-                ),
+                "scaleratio": map_height / map_width,
             },
             paper_bgcolor="white",
             plot_bgcolor="white",
@@ -609,17 +529,10 @@ with result_column:
                     )
 
                 else:
-                    settings = (
-                        st.session_state
-                        .plate_crop_settings[
-                            record["plate"]
-                        ]
-                    )
-
                     cropped = crop_sector(
                         image,
+                        record["plate"],
                         record["section"],
-                        settings,
                     )
 
                     st.image(
@@ -648,23 +561,20 @@ with result_column:
 st.divider()
 
 with st.expander("전체 채취 기록 확인"):
-    st.table(
-        [
-            {
-                "플레이트": plate,
-                "구역": section,
-                "지도 공간": place,
-                "채취 대상": target,
-            }
-            for (
-                place,
-                target,
-                plate,
-                section,
-            ) in SAMPLES
-        ]
-    )
+    st.table([
+        {
+            "플레이트": plate,
+            "구역": section,
+            "지도 공간": place,
+            "채취 대상": target,
+        }
+        for place, target, plate, section in SAMPLES
+    ])
 
+st.caption(
+    "사진의 보이는 구역선에 맞춰 잘랐으며, "
+    "집락에 가려진 경계는 연장 방향을 추정했습니다."
+)
 
 st.subheader("💡 결과 해석 안내")
 
