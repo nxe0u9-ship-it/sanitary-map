@@ -18,73 +18,11 @@ st.set_page_config(
 )
 
 
-def show_hygiene_map():
-    st.title("🧫 둔산여고 위생맵")
+if "map_visit" not in st.session_state:
+    st.session_state.map_visit = 0
 
-    st.write(
-        "형광펜으로 표시된 장소 이름을 누르면 "
-        "아래에서 배양 사진과 동정 결과를 확인할 수 있습니다."
-    )
 
-    st.subheader("📍 학교 공간 지도")
-
-    show_legend()
-
-    render_map(
-        "active_map_place",
-        "main_map_fullwidth_v3",
-    )
-
-    st.divider()
-
-    st.subheader("🔎 선택한 공간의 전체 기록")
-
-    place = st.session_state.get(
-        "active_map_place"
-    )
-
-    if not place:
-        st.info(
-            "위 지도에서 장소 이름을 눌러주세요."
-        )
-
-    else:
-        st.markdown(f"### 📍 {place}")
-
-        result_ids = GROUPS[place]
-        column_count = min(3, len(result_ids))
-
-        for start in range(
-            0,
-            len(result_ids),
-            column_count,
-        ):
-            columns = st.columns(
-                column_count,
-                gap="large",
-            )
-
-            row = result_ids[
-                start:start + column_count
-            ]
-
-            for column, result_id in zip(columns, row):
-                with column:
-                    st.markdown(
-                        f"#### {RESULTS[result_id]['short']}"
-                    )
-
-                    show_result_photo(
-                        result_id,
-                        framed=True,
-                    )
-
-                    show_identification(
-                        result_id
-                    )
-
-            st.divider()
-
+def show_all_records():
     with st.expander("전체 채취 기록 확인"):
         risk_icons = {
             1: "🔵",
@@ -140,20 +78,146 @@ def show_hygiene_map():
         st.table(rows)
 
 
+def show_hygiene_map():
+    st.title("🧫 둔산여고 위생맵")
+
+    st.write(
+        "형광펜으로 표시된 장소 이름을 누르면 "
+        "해당 장소의 배양 사진과 동정 결과 페이지로 이동합니다."
+    )
+
+    st.subheader("📍 학교 공간 지도")
+
+    show_legend()
+
+    render_map(
+        "active_map_place",
+        f"main_map_visit_{st.session_state.map_visit}",
+    )
+
+    place = st.session_state.get(
+        "active_map_place"
+    )
+
+    if place in GROUPS:
+        st.session_state.detail_place = place
+        st.session_state.active_map_place = None
+
+        # 지도로 돌아왔을 때 이전 클릭이 재실행되지 않게 합니다.
+        st.session_state.map_visit += 1
+
+        st.switch_page(result_page)
+
+    st.divider()
+
+    show_all_records()
+
+
+def show_place_results():
+    if st.button(
+        "← 지도로 돌아가기",
+        key="back_to_map_top",
+    ):
+        st.switch_page(map_page)
+
+    place = st.session_state.get(
+        "detail_place"
+    )
+
+    if place not in GROUPS:
+        st.info(
+            "지도에서 확인할 장소를 선택해주세요."
+        )
+        return
+
+    st.title(f"📍 {place}")
+
+    st.subheader("🔬 배양 사진과 동정 결과")
+
+    result_ids = GROUPS[place]
+    column_count = min(3, len(result_ids))
+
+    for start in range(
+        0,
+        len(result_ids),
+        column_count,
+    ):
+        columns = st.columns(
+            column_count,
+            gap="large",
+        )
+
+        row = result_ids[
+            start:start + column_count
+        ]
+
+        for column, result_id in zip(columns, row):
+            with column:
+                st.markdown(
+                    f"### {RESULTS[result_id]['short']}"
+                )
+
+                show_result_photo(
+                    result_id,
+                    framed=True,
+                )
+
+                show_identification(
+                    result_id
+                )
+
+        st.divider()
+
+    if st.button(
+        "← 지도로 돌아가기",
+        key="back_to_map_bottom",
+    ):
+        st.switch_page(map_page)
+
+
+map_page = st.Page(
+    show_hygiene_map,
+    title="둔산여고 위생맵",
+    icon="🧫",
+    default=True,
+)
+
+comparison_page = st.Page(
+    "pages/1_배양_결과_비교.py",
+    title="배양 결과 비교",
+    icon="🔬",
+)
+
+result_page = st.Page(
+    show_place_results,
+    title="장소별 결과",
+    icon="📍",
+    url_path="place-results",
+)
+
+
 page = st.navigation(
     [
-        st.Page(
-            show_hygiene_map,
-            title="둔산여고 위생맵",
-            icon="🧫",
-            default=True,
-        ),
-        st.Page(
-            "pages/1_배양_결과_비교.py",
-            title="배양 결과 비교",
-            icon="🔬",
-        ),
-    ]
+        map_page,
+        comparison_page,
+        result_page,
+    ],
+    position="hidden",
 )
+
+
+with st.sidebar:
+    st.page_link(
+        map_page,
+        label="둔산여고 위생맵",
+        icon="🧫",
+    )
+
+    st.page_link(
+        comparison_page,
+        label="배양 결과 비교",
+        icon="🔬",
+    )
+
 
 page.run()
