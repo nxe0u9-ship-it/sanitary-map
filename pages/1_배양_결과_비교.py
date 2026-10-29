@@ -13,7 +13,7 @@ from school_data import (
 
 st.set_page_config(
     page_title="배양 결과 비교",
-    page_icon="🧫",
+    page_icon="🔬",
     layout="wide",
 )
 
@@ -71,7 +71,7 @@ def select_place_results(place):
     st.session_state.compare_ids = selected
 
 
-st.title("🧫 배양 결과 비교")
+st.title("🔬 배양 결과 비교")
 
 st.write(
     "지도에서 장소를 누른 뒤 비교할 대상을 체크하세요. "
@@ -192,15 +192,3 @@ else:
                 )
 
         st.divider()
-
-
-st.caption(
-    "사진은 보기 편하도록 표시 크기를 맞췄습니다. "
-    "실제 집락 크기를 재는 척도로 사용할 수 없습니다."
-)
-
-st.info(
-    "집락의 색·모양·표면·퍼진 정도와 동정 근거를 "
-    "함께 비교해보세요. 장소별 차이를 해석하려면 "
-    "채취 방법과 배양 조건도 확인해야 합니다."
-)
