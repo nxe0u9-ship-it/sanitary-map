@@ -1,13 +1,11 @@
 from pathlib import Path
 import base64
 
-import streamlit as st
+from PIL import Image, ImageOps
 import plotly.graph_objects as go
+import streamlit as st
 
 
-# ──────────────────────────────
-# 1. 기본 설정
-# ──────────────────────────────
 st.set_page_config(
     page_title="우리 학교 위생맵",
     page_icon="🧫",
@@ -18,126 +16,271 @@ BASE_DIR = Path(__file__).resolve().parent
 MAP_PATH = BASE_DIR / "school_map.png"
 
 
-# ──────────────────────────────
-# 2. 평면도에 표시할 장소와 좌표
-# ──────────────────────────────
-# 왼쪽 위가 (0, 0), 오른쪽 아래가 (100, 100)
-# 좌표는 평면도 위 선택 지점의 위치를 뜻함.
+# 기록이 있는 공간만 지도에 표시합니다.
+# 글씨를 덜 가리도록 공간의 가장자리 쪽으로 조정한 대표 좌표입니다.
 PLACES = {
-    "운동장": (36, 15),
-    "인쇄실": (18, 36),
-    "보건실": (26, 36),
-    "방송실": (34, 36),
-    "교무 1실": (42, 36),
-    "당직실": (50, 36),
-    "중앙정원": (34, 57),
-    "본관 왼쪽 화장실": (8, 35),
-    "본관 위쪽 화장실": (64, 30),
-    "본관 아래쪽 화장실": (64, 80),
-    "분리수거장": (6, 58),
-    "엘리베이터": (6, 76),
-    "청소 휴게실": (6, 84),
-    "생명과학 실험실": (18, 86),
-    "학습 도움실": (28, 86),
-    "준비실": (36, 86),
-    "탐구 교육 1실": (42, 86),
-    "서고": (50, 86),
-    "현관": (65, 43),
-    "행정실": (64, 58),
-    "시청각실": (64, 68),
-    "신관 여직원 휴게실": (78, 36),
-    "신관 창고": (86, 36),
-    "신관 소그룹 1실": (78, 78),
-    "신관 AI Lab실": (86, 78),
-    "신관 AI 메이커실": (94, 78),
+    "운동장": (36, 21),
+    "본관 왼쪽 위 계단": (5, 23),
+    "본관 오른쪽 위 계단": (67, 20),
+    "보건실": (23, 33),
+    "보건실 앞 복도": (26, 44),
+    "교무 1실": (39, 33),
+    "당직실": (48, 33),
+    "남자화장실": (67, 30),
+    "여자화장실": (67, 80),
+    "분리수거장": (3, 58),
+    "중앙정원": (34, 65),
+    "엘리베이터": (3, 76),
+    "학습 도움실": (25, 90),
+    "탐구 1실": (40, 90),
+    "서고": (48, 90),
+    "본관 왼쪽 아래 계단": (5, 94),
+    "현관": (68, 44),
+    "행정실": (67, 58),
+    "신관 소그룹 1실": (76, 82),
 }
 
 
-# ──────────────────────────────
-# 3. 실제 조사 결과
-# ──────────────────────────────
-# 아직 결과가 준비되지 않았으므로 비워 둠.
-# 나중에 이 부분에 실제 결과를 추가하면 됨.
-RESULTS = {}
-
-# 나중에 결과를 추가할 때 사용할 형식:
+# 지도 공간 / 채취 대상 / 플레이트 번호 / 구역 번호
+# 구역 번호는 글씨 없는 앞면 기준입니다.
+# 1: 왼쪽 위, 2: 오른쪽 위, 3: 왼쪽 아래, 4: 오른쪽 아래
 #
-# RESULTS["보건실"] = {
-#     "sample": "실제 채취 대상",
-#     "date": "실제 채취 날짜",
-#     "conditions": "채취 방법과 배양 조건",
-#     "count": None,
-#     "identification": "미동정",
-#     "confidence": "미동정",
-#     "evidence": "관찰 특징과 동정 근거",
-#     "photo": "images/health_room.jpg",
-#     "care": "실제 관찰 결과를 바탕으로 작성한 관리 제안",
-# }
-#
-# count: 확인한 집락 수를 숫자로 입력. 미측정은 None.
-# confidence: "미동정", "추정", "확인" 중 입력.
-# photo: GitHub 저장소에 올린 사진 파일의 경로.
+# 4번 플레이트 3번 구역의 '교무실' 기록은 제외했습니다.
+SAMPLES = [
+    ("엘리베이터", "엘리베이터", 1, 1),
+    ("탐구 1실", "탐구1실 창고", 1, 2),
+    ("본관 왼쪽 아래 계단", "계단", 1, 3),
+    ("신관 소그룹 1실", "신관", 1, 4),
+
+    ("남자화장실", "남자화장실 손잡이", 2, 1),
+    ("현관", "1층 거울", 2, 2),
+    ("현관", "우산꽂이", 2, 3),
+    ("학습 도움실", "학습도움실", 2, 4),
+
+    ("교무 1실", "1층 본부교무실", 3, 1),
+    ("운동장", "담 철창살", 3, 2),
+    ("중앙정원", "중앙정원 벤치", 3, 3),
+    ("운동장", "운동장 체육부품실 손잡이", 3, 4),
+
+    ("보건실 앞 복도", "보건실쪽 신발장", 4, 1),
+    ("분리수거장", "분리수거장", 4, 2),
+    ("중앙정원", "중앙정원 식물", 4, 4),
+
+    ("당직실", "당직실 책상", 5, 1),
+    ("서고", "서고", 5, 2),
+    ("탐구 1실", "탐구1실 싱크대", 5, 3),
+    ("본관 오른쪽 위 계단", "남자화장실 옆 히터", 5, 4),
+
+    ("여자화장실", "화장실 수도꼭지", 6, 1),
+    ("여자화장실", "변기", 6, 2),
+    ("여자화장실", "화장실 세면대", 6, 3),
+    ("여자화장실", "화장실 문 손잡이", 6, 4),
+
+    ("현관", "내빈용 실내화", 7, 1),
+    ("보건실", "보건실", 7, 2),
+    ("행정실", "행정실", 7, 3),
+    ("본관 왼쪽 위 계단", "청소도구함", 7, 4),
+]
 
 
-# ──────────────────────────────
-# 4. 선택 상태 설정
-# ──────────────────────────────
-place_names = list(PLACES.keys())
+RECORDS = {place: [] for place in PLACES}
 
-if "selected_place" not in st.session_state:
-    st.session_state.selected_place = place_names[0]
+for place, target, plate, section in SAMPLES:
+    RECORDS[place].append(
+        {
+            "target": target,
+            "plate": plate,
+            "section": section,
+        }
+    )
+
+
+POSITIONS = {
+    1: "왼쪽 위",
+    2: "오른쪽 위",
+    3: "왼쪽 아래",
+    4: "오른쪽 아래",
+}
+
+# 앞면 구역 번호 → 뒷면 사진에서의 위치 번호
+BACK_SECTIONS = {
+    1: 2,
+    2: 1,
+    3: 4,
+    4: 3,
+}
+
+
+# 사진을 네 구역으로 나누는 중심 위치
+# 2~7번은 우선 사진의 정중앙을 기준으로 합니다.
+PHOTO_CENTERS = {
+    1: {
+        "front": (0.50, 0.50),
+        "back": (0.47, 0.49),
+    },
+    **{
+        plate: {
+            "front": (0.50, 0.50),
+            "back": (0.50, 0.50),
+        }
+        for plate in range(2, 8)
+    },
+}
+
+
+def find_photo(plate, side):
+    """파일 이름과 확장자를 확인해 사진을 찾습니다."""
+    stem = f"plate{plate}_{side}"
+    extensions = (".jpg", ".jpeg", ".png", ".webp")
+
+    for extension in extensions:
+        path = BASE_DIR / f"{stem}{extension}"
+
+        if path.is_file():
+            return path
+
+    # 대문자 확장자도 지원합니다.
+    for path in BASE_DIR.iterdir():
+        if (
+            path.is_file()
+            and path.stem.lower() == stem
+            and path.suffix.lower() in extensions
+        ):
+            return path
+
+    return None
+
+
+def crop_section(image, section, center_x, center_y):
+    """선택한 구역에 해당하는 사진만 잘라냅니다."""
+    width, height = image.size
+
+    split_x = int(width * center_x)
+    split_y = int(height * center_y)
+
+    boxes = {
+        1: (0, 0, split_x, split_y),
+        2: (split_x, 0, width, split_y),
+        3: (0, split_y, split_x, height),
+        4: (split_x, split_y, width, height),
+    }
+
+    return image.crop(boxes[section])
+
+
+def show_photo(record, side):
+    plate = record["plate"]
+    section = record["section"]
+
+    path = find_photo(plate, side)
+
+    if path is None:
+        st.warning(
+            f"plate{plate}_{side} 사진 파일이 없습니다."
+        )
+        return
+
+    photo_section = (
+        BACK_SECTIONS[section]
+        if side == "back"
+        else section
+    )
+
+    try:
+        with Image.open(path) as source:
+            image = ImageOps.exif_transpose(
+                source
+            ).convert("RGB")
+
+        center_x, center_y = PHOTO_CENTERS[plate][side]
+
+        cropped = crop_section(
+            image,
+            photo_section,
+            center_x,
+            center_y,
+        )
+
+        side_name = "앞면" if side == "front" else "뒷면"
+
+        st.image(
+            cropped,
+            use_container_width=True,
+            caption=(
+                f"{record['target']} · "
+                f"{plate}번 플레이트 · "
+                f"{section}번 구역 · "
+                f"{side_name} {POSITIONS[photo_section]}"
+            ),
+        )
+
+    except (OSError, ValueError):
+        st.error(
+            f"{path.name} 사진을 읽지 못했습니다. "
+            "이미지 파일을 확인해주세요."
+        )
+
+
+# 기존 코드에서 사용하던 선택 상태와 구분합니다.
+if (
+    st.session_state.get("active_map_place")
+    not in RECORDS
+):
+    st.session_state.active_map_place = None
 
 
 def handle_map_selection():
-    """지도에서 선택한 장소를 장소 목록에 반영."""
-    map_state = st.session_state.get("school_map", {})
-    selection = map_state.get("selection", {})
-    points = selection.get("points", [])
+    """지도 클릭만으로 해당 공간의 모든 기록을 표시합니다."""
+    state = st.session_state.get(
+        "school_map_click",
+        {},
+    )
 
-    if points:
-        selected_name = points[-1].get("customdata")
+    points = state.get(
+        "selection",
+        {},
+    ).get("points", [])
 
-        if selected_name in PLACES:
-            st.session_state.selected_place = selected_name
+    if not points:
+        return
+
+    name = points[-1].get("customdata")
+
+    if name in RECORDS:
+        st.session_state.active_map_place = name
 
 
-# ──────────────────────────────
-# 5. 화면 상단
-# ──────────────────────────────
 st.title("🧫 우리 학교 위생맵")
 
 st.write(
-    "학교 여러 장소에서 얻은 미생물 배양 관찰 결과를 "
-    "평면도에서 확인할 수 있는 지도입니다."
+    "지도 위 작은 원을 누르면 그 공간에서 채취한 "
+    "모든 대상의 배양 사진과 관찰 기록을 확인할 수 있습니다."
 )
 
-st.info(
-    "현재 지도 준비 단계입니다. "
-    "배양 사진과 동정 결과는 확인이 끝난 후 추가할 예정입니다."
+st.caption(
+    f"7개 플레이트 · {len(SAMPLES)}개 채취 기록 · "
+    "미생물 동정 결과는 확인 후 추가"
 )
 
 
-# ──────────────────────────────
-# 6. 지도와 결과 화면
-# ──────────────────────────────
 map_column, result_column = st.columns(
-    [1.7, 1],
+    [1.6, 1],
     gap="large",
 )
+
 
 with map_column:
     st.subheader("📍 학교 공간 지도")
 
     st.caption(
-        "지도 위 동그란 점을 클릭하세요. "
-        "점의 위치는 공간 선택을 위한 것이며, "
-        "실제 채취 지점이나 검출량을 뜻하지 않습니다."
+        "기록이 등록된 공간에만 원이 표시됩니다. "
+        "원 위에 마우스를 올리면 장소 이름이 나옵니다."
     )
 
     if not MAP_PATH.is_file():
         st.error(
-            "평면도 사진을 찾을 수 없습니다. "
-            "main.py와 같은 위치에 school_map.png를 올려주세요."
+            "main.py와 같은 위치에 "
+            "school_map.png를 올려주세요."
         )
 
     else:
@@ -145,11 +288,23 @@ with map_column:
             MAP_PATH.read_bytes()
         ).decode("ascii")
 
+        with Image.open(MAP_PATH) as map_image:
+            map_width, map_height = map_image.size
+
+        # 실제 기록이 있는 공간만 클릭할 수 있게 표시
+        map_names = [
+            name
+            for name in PLACES
+            if RECORDS.get(name)
+        ]
+
         figure = go.Figure()
 
-        # 평면도를 배경 이미지로 추가
         figure.add_layout_image(
-            source=f"data:image/png;base64,{encoded_image}",
+            source=(
+                "data:image/png;base64,"
+                f"{encoded_image}"
+            ),
             xref="x",
             yref="y",
             x=0,
@@ -162,55 +317,54 @@ with map_column:
             layer="below",
         )
 
-        # 결과 등록 여부에 따른 색상
-        marker_colors = [
-            "#27825D" if name in RESULTS else "#697D8D"
-            for name in place_names
-        ]
-
-        # 선택할 수 있는 점 추가
         figure.add_trace(
             go.Scatter(
                 x=[
                     PLACES[name][0]
-                    for name in place_names
+                    for name in map_names
                 ],
                 y=[
                     PLACES[name][1]
-                    for name in place_names
+                    for name in map_names
                 ],
-                customdata=place_names,
+                customdata=map_names,
+                text=[
+                    (
+                        f"{name}<br>"
+                        f"채취 기록 {len(RECORDS[name])}개"
+                        "<br>클릭해서 전체 보기"
+                    )
+                    for name in map_names
+                ],
                 mode="markers",
                 marker={
-                    "size": 14,
-                    "color": marker_colors,
+                    "size": 11,
+                    "symbol": "circle-open",
+                    "color": "#087F5B",
                     "line": {
-                        "color": "white",
                         "width": 2,
                     },
-                    "opacity": 0.9,
                 },
                 selected={
                     "marker": {
-                        "size": 19,
+                        "size": 14,
+                        "color": "#D35400",
                         "opacity": 1,
-                    }
+                    },
                 },
                 unselected={
                     "marker": {
-                        "opacity": 0.75,
-                    }
+                        "opacity": 1,
+                    },
                 },
                 hovertemplate=(
-                    "%{customdata}"
-                    "<extra></extra>"
+                    "%{text}<extra></extra>"
                 ),
             )
         )
 
-        # 평면도 비율 및 클릭 설정
         figure.update_layout(
-            height=590,
+            height=650,
             margin={
                 "l": 0,
                 "r": 0,
@@ -220,6 +374,7 @@ with map_column:
             showlegend=False,
             clickmode="event+select",
             dragmode=False,
+            uirevision="school-map",
             xaxis={
                 "range": [0, 100],
                 "visible": False,
@@ -230,7 +385,14 @@ with map_column:
                 "visible": False,
                 "fixedrange": True,
                 "scaleanchor": "x",
-                "scaleratio": 560 / 818,
+                "scaleratio": (
+                    map_height / map_width
+                ),
+            },
+            hoverlabel={
+                "bgcolor": "white",
+                "font_size": 14,
+                "font_color": "#15372B",
             },
             paper_bgcolor="white",
             plot_bgcolor="white",
@@ -239,136 +401,134 @@ with map_column:
         st.plotly_chart(
             figure,
             use_container_width=True,
-            key="school_map",
+            key="school_map_click",
             on_select=handle_map_selection,
             selection_mode="points",
             config={
                 "displayModeBar": False,
                 "scrollZoom": False,
+                "doubleClick": False,
             },
         )
 
-        st.caption(
-            "⚪ 회색 점: 결과 등록 예정　"
-            "🟢 초록색 점: 관찰 기록 등록"
-        )
+    st.caption(
+        "원은 공간을 선택하기 위한 대표 위치입니다."
+    )
+
+    st.caption(
+        "1번 플레이트의 ‘계단’ 기록은 "
+        "본관 왼쪽 아래 계단에 임시로 연결했습니다."
+    )
 
 
 with result_column:
-    st.subheader("🔎 장소별 관찰 기록")
+    st.subheader("🔎 선택한 공간의 전체 기록")
 
-    selected_place = st.selectbox(
-        "확인할 장소",
-        options=place_names,
-        key="selected_place",
+    selected_place = (
+        st.session_state.active_map_place
     )
 
-    st.markdown(f"### {selected_place}")
-
-    result = RESULTS.get(selected_place)
-
-    if result is None:
-        st.info("결과 등록 예정")
-
-        st.write(
-            "배양 사진과 동정 결과가 준비되면 "
-            "이곳에 관찰 기록을 추가할 예정입니다."
-        )
-
-        st.caption(
-            "결과 미등록은 미생물이 검출되지 않았다는 "
-            "뜻이 아닙니다."
+    if selected_place is None:
+        st.info(
+            "왼쪽 지도에서 확인할 공간의 "
+            "작은 원을 눌러주세요."
         )
 
     else:
-        st.write(
-            "**채취 대상:**",
-            result.get("sample") or "미입력",
+        records = RECORDS[selected_place]
+
+        st.markdown(
+            f"### 📍 {selected_place}"
         )
 
-        st.write(
-            "**채취 날짜:**",
-            result.get("date") or "미입력",
+        st.success(
+            f"이 공간의 채취 기록 "
+            f"{len(records)}개를 모두 표시합니다."
         )
 
-        st.write(
-            "**조사 조건:**",
-            result.get("conditions") or "미입력",
-        )
+        # 추가 선택 없이 모든 채취 기록을 차례대로 표시
+        for index, record in enumerate(
+            records,
+            start=1,
+        ):
+            st.markdown(
+                f"#### {index}. {record['target']}"
+            )
 
-        colony_count = result.get("count")
+            st.caption(
+                f"{record['plate']}번 플레이트 · "
+                f"{record['section']}번 구역"
+            )
 
-        st.metric(
-            label="관찰한 집락 수",
-            value=(
-                "미측정"
-                if colony_count is None
-                else f"{colony_count}개"
-            ),
-        )
+            front_tab, back_tab = st.tabs(
+                [
+                    "앞면 사진",
+                    "뒷면 사진",
+                ]
+            )
 
-        st.write(
-            "**동정 결과:**",
-            result.get("identification") or "미동정",
-        )
-
-        st.write(
-            "**확인 수준:**",
-            result.get("confidence") or "미동정",
-        )
-
-        st.write(
-            "**관찰 근거:**",
-            result.get("evidence") or "미입력",
-        )
-
-        photo = result.get("photo")
-
-        if photo:
-            photo_path = BASE_DIR / photo
-
-            if photo_path.is_file():
-                st.image(
-                    str(photo_path),
-                    caption=(
-                        f"{selected_place} 배양 관찰 사진"
-                    ),
-                    use_container_width=True,
-                )
-            else:
-                st.warning(
-                    "등록된 경로에 사진 파일이 없습니다. "
-                    "사진 이름과 경로를 확인해주세요."
+            with front_tab:
+                show_photo(
+                    record,
+                    "front",
                 )
 
-        st.write(
-            "**위생 관리 제안:**",
-            result.get("care") or "결과 확인 후 추가 예정",
+            with back_tab:
+                show_photo(
+                    record,
+                    "back",
+                )
+
+            st.write(
+                "**동정 상태:** 미동정"
+            )
+
+            st.caption(
+                "집락 수: 미계수 · "
+                "조사 조건: 확인 후 추가"
+            )
+
+            st.divider()
+
+        st.caption(
+            "원본 사진을 구역별로 잘라 표시했습니다. "
+            "구역 경계에 걸친 집락은 채취 장소를 "
+            "명확히 구분하기 어려울 수 있습니다."
         )
 
 
-# ──────────────────────────────
-# 7. 제작 목적과 해석 안내
-# ──────────────────────────────
 st.divider()
 
-purpose_column, guide_column = st.columns(2)
-
-with purpose_column:
-    st.subheader("📋 제작 목적")
-
-    st.write(
-        "학교 여러 장소에서 얻은 미생물 배양 관찰 결과를 "
-        "지도에 연결하여 학교 환경에 대한 관심을 높이고, "
-        "생활 속 위생 관리를 실천하도록 돕습니다."
+with st.expander(
+    "전체 채취 기록과 사진 번호 확인"
+):
+    st.table(
+        [
+            {
+                "플레이트": plate,
+                "구역": section,
+                "지도 공간": place,
+                "채취 대상": target,
+                "앞면 위치": POSITIONS[section],
+                "뒷면 위치": POSITIONS[
+                    BACK_SECTIONS[section]
+                ],
+            }
+            for (
+                place,
+                target,
+                plate,
+                section,
+            ) in SAMPLES
+        ]
     )
 
-with guide_column:
-    st.subheader("💡 결과 해석 안내")
 
-    st.write(
-        "같은 채취 방법과 배양 조건에서 얻은 결과끼리 "
-        "비교합니다. 집락 수만으로 병원성이나 장소 전체의 "
-        "안전성을 판단하지 않으며, 동정 결과의 추정 여부와 "
-        "관찰 근거를 함께 표시합니다."
-    )
+st.subheader("💡 결과 해석 안내")
+
+st.write(
+    "같은 채취 방법과 배양 조건에서 얻은 결과끼리 "
+    "비교합니다. 사진의 색과 모양만으로 미생물의 종을 "
+    "확정하거나, 집락 수만으로 장소 전체의 안전성을 "
+    "판단하지 않습니다."
+)
