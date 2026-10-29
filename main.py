@@ -22,53 +22,70 @@ def show_hygiene_map():
 
     st.write(
         "형광펜으로 표시된 장소 이름을 누르면 "
-        "배양 사진과 동정 결과를 확인할 수 있습니다."
+        "아래에서 배양 사진과 동정 결과를 확인할 수 있습니다."
     )
 
-    map_column, result_column = st.columns(
-        [1.6, 1],
-        gap="large",
+    # 지도를 좌우로 나누지 않고 전체 폭으로 표시
+    st.subheader("📍 학교 공간 지도")
+
+    show_legend()
+
+    render_map(
+        "active_map_place",
+        "main_map_fullwidth_v3",
     )
 
-    with map_column:
-        st.subheader("📍 학교 공간 지도")
-
-        show_legend()
-
-        render_map(
-            "active_map_place",
-            "main_map_v2",
-        )
-
-        st.caption(
-            "‘계단’ 기록은 본관 왼쪽 아래 계단에 "
-            "임시 연결했습니다."
-        )
-
-    with result_column:
-        st.subheader("🔎 선택한 공간의 전체 기록")
-
-        place = st.session_state.get("active_map_place")
-
-        if not place:
-            st.info(
-                "왼쪽 지도에서 장소 이름을 눌러주세요."
-            )
-
-        else:
-            st.markdown(f"### 📍 {place}")
-
-            for result_id in GROUPS[place]:
-                st.markdown(
-                    f"#### {RESULTS[result_id]['short']}"
-                )
-
-                show_result_photo(result_id)
-                show_identification(result_id)
-
-                st.divider()
+    st.caption(
+        "‘계단’ 기록은 본관 왼쪽 아래 계단에 "
+        "임시 연결했습니다."
+    )
 
     st.divider()
+
+    # 선택한 장소의 기록은 지도 아래에 표시
+    st.subheader("🔎 선택한 공간의 전체 기록")
+
+    place = st.session_state.get("active_map_place")
+
+    if not place:
+        st.info(
+            "위 지도에서 장소 이름을 눌러주세요."
+        )
+
+    else:
+        st.markdown(f"### 📍 {place}")
+
+        result_ids = GROUPS[place]
+        column_count = min(3, len(result_ids))
+
+        for start in range(
+            0,
+            len(result_ids),
+            column_count,
+        ):
+            columns = st.columns(
+                column_count,
+                gap="large",
+            )
+
+            row = result_ids[
+                start:start + column_count
+            ]
+
+            for column, result_id in zip(columns, row):
+                with column:
+                    st.markdown(
+                        f"#### {RESULTS[result_id]['short']}"
+                    )
+
+                    show_result_photo(
+                        result_id,
+                        framed=True,
+                    )
+
+                    show_identification(result_id)
+
+            st.divider()
 
     with st.expander("전체 채취 기록 확인"):
         st.table([
