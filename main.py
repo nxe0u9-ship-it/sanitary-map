@@ -17,34 +17,33 @@ BASE_DIR = Path(__file__).resolve().parent
 MAP_PATH = BASE_DIR / "school_map.png"
 
 
-# 관찰 기록이 있는 공간만 지도에 표시합니다.
-PLACES = {
-    "운동장": (36, 21),
-    "본관 왼쪽 위 계단": (5, 23),
-    "본관 오른쪽 위 계단": (67, 20),
-    "보건실": (23, 33),
-    "보건실 앞 복도": (26, 25),
-    "교무 1실": (39, 33),
-    "당직실": (48, 33),
-    "남자화장실": (67, 30),
-    "여자화장실": (67, 80),
-    "분리수거장": (3, 58),
-    "중앙정원": (34, 65),
-    "엘리베이터": (3, 76),
-    "학습 도움실": (25, 90),
-    "탐구 1실": (40, 90),
-    "서고": (48, 90),
-    "본관 왼쪽 아래 계단": (5, 94),
-    "현관": (68, 44),
-    "행정실": (67, 58),
-    "신관 소그룹 1실": (76, 82),
+# 평면도 원본 818 × 560 기준
+# 장소 이름에 형광펜을 칠할 영역입니다.
+HIGHLIGHTS = {
+    "운동장": (240, 71, 350, 101),
+    "본관 왼쪽 위 계단": (53, 111, 104, 141),
+    "본관 오른쪽 위 계단": (481, 111, 535, 141),
+    "보건실": (182, 181, 244, 213),
+    "보건실 앞 복도": (237, 130, 322, 155),
+    "교무 1실": (322, 171, 369, 228),
+    "당직실": (381, 181, 440, 213),
+    "남자화장실": (489, 158, 560, 184),
+    "여자화장실": (489, 438, 560, 465),
+    "분리수거장": (21, 301, 77, 348),
+    "중앙정원": (207, 307, 354, 341),
+    "엘리베이터": (29, 411, 68, 434),
+    "학습 도움실": (193, 446, 269, 509),
+    "탐구 1실": (317, 438, 374, 520),
+    "서고": (386, 461, 437, 496),
+    "본관 왼쪽 아래 계단": (54, 507, 104, 538),
+    "현관": (527, 208, 559, 272),
+    "행정실": (489, 308, 561, 340),
+    "신관 소그룹 1실": (612, 408, 670, 471),
 }
 
 
 # 지도 공간, 채취 대상, 플레이트 번호, 앞면 구역 번호
-# 앞면 기준: 왼쪽 위 1, 오른쪽 위 2,
-#            왼쪽 아래 3, 오른쪽 아래 4
-# 4번 플레이트 3번 구역의 교무실은 제외했습니다.
+# 4번 플레이트 3번 구역의 교무실 기록은 제외했습니다.
 SAMPLES = [
     ("엘리베이터", "엘리베이터", 1, 1),
     ("탐구 1실", "탐구1실 창고", 1, 2),
@@ -82,7 +81,7 @@ SAMPLES = [
 ]
 
 
-RECORDS = {name: [] for name in PLACES}
+RECORDS = {name: [] for name in HIGHLIGHTS}
 
 for place, target, plate, section in SAMPLES:
     RECORDS[place].append({
@@ -92,85 +91,44 @@ for place, target, plate, section in SAMPLES:
     })
 
 
-# 실제 앞면 사진을 보고 정한 사진별 자르기 좌표입니다.
-# 좌표는 사진을 1600 × 1600으로 환산한 기준입니다.
-#
-# 각 항목:
-# 1. 배지 내부의 타원 경계
-# 2. 구역선이 만나는 지점
-# 3. 위쪽, 오른쪽, 아래쪽, 왼쪽 구역선의 방향점
-#
-# 집락으로 가려진 선은 보이는 부분의 연장 방향으로 추정했습니다.
+# 앞면 사진별 자르기 경계
+# 1600 × 1600으로 환산한 좌표입니다.
+# 순서: 배지 내부 타원, 구역선 교점, 위·오른쪽·아래·왼쪽 방향점
 PHOTO_BOUNDS = {
     1: (
         (270, 300, 1370, 1390),
         (780, 850),
-        (
-            (720, 330),
-            (1320, 900),
-            (980, 1380),
-            (310, 810),
-        ),
+        ((720, 330), (1320, 900), (980, 1380), (310, 810)),
     ),
     2: (
         (170, 285, 1330, 1420),
         (768, 870),
-        (
-            (780, 300),
-            (1320, 885),
-            (730, 1410),
-            (180, 970),
-        ),
+        ((780, 300), (1320, 885), (730, 1410), (180, 970)),
     ),
     3: (
         (300, 280, 1400, 1400),
         (850, 750),
-        (
-            (700, 280),
-            (1390, 740),
-            (980, 1390),
-            (300, 760),
-        ),
+        ((700, 280), (1390, 740), (980, 1390), (300, 760)),
     ),
     4: (
         (280, 175, 1385, 1320),
         (900, 770),
-        (
-            (900, 180),
-            (1380, 785),
-            (830, 1320),
-            (290, 760),
-        ),
+        ((900, 180), (1380, 785), (830, 1320), (290, 760)),
     ),
     5: (
         (160, 170, 1430, 1375),
         (880, 800),
-        (
-            (870, 175),
-            (1430, 825),
-            (820, 1370),
-            (170, 750),
-        ),
+        ((870, 175), (1430, 825), (820, 1370), (170, 750)),
     ),
     6: (
         (260, 290, 1400, 1400),
         (790, 810),
-        (
-            (800, 300),
-            (1390, 740),
-            (800, 1390),
-            (270, 835),
-        ),
+        ((800, 300), (1390, 740), (800, 1390), (270, 835)),
     ),
     7: (
         (210, 185, 1420, 1430),
         (835, 820),
-        (
-            (780, 195),
-            (1410, 780),
-            (840, 1420),
-            (220, 890),
-        ),
+        ((780, 195), (1410, 780), (840, 1420), (220, 890)),
     ),
 }
 
@@ -217,7 +175,7 @@ def get_photo(plate):
 
 
 def crop_sector(image, plate, section):
-    """사진별 배지 경계와 구역선 방향을 적용합니다."""
+    """배지 밖을 투명하게 하고 해당 구역만 남깁니다."""
     width, height = image.size
     bounds, center, directions = PHOTO_BOUNDS[plate]
 
@@ -227,7 +185,6 @@ def crop_sector(image, plate, section):
     cx = center[0] * sx
     cy = center[1] * sy
 
-    # 배지 밖의 바닥을 제거하는 마스크
     dish_mask = Image.new("L", image.size, 0)
 
     ImageDraw.Draw(dish_mask).ellipse(
@@ -240,7 +197,6 @@ def crop_sector(image, plate, section):
         fill=255,
     )
 
-    # 방향점 번호: 위 0, 오른쪽 1, 아래 2, 왼쪽 3
     ray_pairs = {
         1: (3, 0),
         2: (0, 1),
@@ -252,7 +208,6 @@ def crop_sector(image, plate, section):
 
     def direction_angle(index):
         x, y = directions[index]
-
         return math.atan2(
             y * sy - cy,
             x * sx - cx,
@@ -269,7 +224,6 @@ def crop_sector(image, plate, section):
 
     for step in range(91):
         angle = start + (end - start) * step / 90
-
         points.append((
             cx + reach * math.cos(angle),
             cy + reach * math.sin(angle),
@@ -282,23 +236,13 @@ def crop_sector(image, plate, section):
         fill=255,
     )
 
-    # 배지 안쪽이면서 해당 구역인 부분만 유지
-    mask = ImageChops.multiply(
-        dish_mask,
-        sector_mask,
-    )
-
-    mask = ImageChops.multiply(
-        mask,
-        image.getchannel("A"),
-    )
+    mask = ImageChops.multiply(dish_mask, sector_mask)
+    mask = ImageChops.multiply(mask, image.getchannel("A"))
 
     box = mask.getbbox()
 
     if box is None:
-        raise ValueError(
-            "사진 자르기 영역을 확인해주세요."
-        )
+        raise ValueError("사진 자르기 영역을 확인해주세요.")
 
     result = image.copy()
     result.putalpha(mask)
@@ -307,15 +251,8 @@ def crop_sector(image, plate, section):
 
 
 def handle_map_selection():
-    state = st.session_state.get(
-        "school_map_click",
-        {},
-    )
-
-    points = state.get(
-        "selection",
-        {},
-    ).get("points", [])
+    state = st.session_state.get("school_map_click", {})
+    points = state.get("selection", {}).get("points", [])
 
     if points:
         name = points[-1].get("customdata")
@@ -327,8 +264,8 @@ def handle_map_selection():
 st.title("🧫 우리 학교 위생맵")
 
 st.write(
-    "지도 위 작은 원을 누르면 그 공간의 모든 채취 기록과 "
-    "앞면 배양 사진을 확인할 수 있습니다."
+    "지도에서 형광펜으로 표시된 장소 이름을 누르면 "
+    "해당 공간의 모든 배양 관찰 기록을 확인할 수 있습니다."
 )
 
 st.caption(
@@ -347,29 +284,19 @@ with map_column:
     st.subheader("📍 학교 공간 지도")
 
     st.caption(
-        "작은 원을 클릭하세요. "
-        "마우스를 올리면 장소가 표시됩니다."
+        "노란색: 관찰 기록이 있는 공간 · "
+        "초록색: 선택한 공간"
     )
 
     if not MAP_PATH.is_file():
         st.error(
-            "main.py와 같은 위치에 "
-            "school_map.png를 올려주세요."
+            "main.py와 같은 위치에 school_map.png를 올려주세요."
         )
 
     else:
         encoded = base64.b64encode(
             MAP_PATH.read_bytes()
         ).decode("ascii")
-
-        with Image.open(MAP_PATH) as source:
-            map_width, map_height = source.size
-
-        names = [
-            name
-            for name in PLACES
-            if RECORDS.get(name)
-        ]
 
         figure = go.Figure()
 
@@ -379,85 +306,105 @@ with map_column:
             yref="y",
             x=0,
             y=0,
-            sizex=100,
-            sizey=100,
+            sizex=818,
+            sizey=560,
             sizing="stretch",
             xanchor="left",
             yanchor="top",
             layer="below",
         )
 
-        figure.add_trace(
-            go.Scatter(
-                x=[
-                    PLACES[name][0]
-                    for name in names
-                ],
-                y=[
-                    PLACES[name][1]
-                    for name in names
-                ],
-                customdata=names,
-                text=[
-                    (
+        click_x = []
+        click_y = []
+        click_names = []
+        click_text = []
+
+        active_place = st.session_state.active_map_place
+
+        for name, bounds in HIGHLIGHTS.items():
+            if not RECORDS.get(name):
+                continue
+
+            left, top, right, bottom = bounds
+
+            if name == active_place:
+                color = "rgba(53, 199, 118, 0.30)"
+            else:
+                color = "rgba(255, 219, 51, 0.30)"
+
+            # 글자가 보이도록 반투명 형광펜 표시
+            figure.add_shape(
+                type="rect",
+                x0=left,
+                y0=top,
+                x1=right,
+                y1=bottom,
+                fillcolor=color,
+                line={"width": 0},
+                layer="above",
+            )
+
+            # 형광펜 영역 전체를 클릭할 수 있도록
+            # 거의 투명한 클릭 지점을 촘촘하게 배치합니다.
+            for x in range(left, right + 1, 4):
+                for y in range(top, bottom + 1, 4):
+                    click_x.append(x)
+                    click_y.append(y)
+                    click_names.append(name)
+                    click_text.append(
                         f"{name}<br>"
                         f"채취 기록 {len(RECORDS[name])}개"
                     )
-                    for name in names
-                ],
+
+        figure.add_trace(
+            go.Scatter(
+                x=click_x,
+                y=click_y,
+                customdata=click_names,
+                text=click_text,
                 mode="markers",
                 marker={
-                    "size": 11,
-                    "symbol": "circle-open",
-                    "color": "#087F5B",
-                    "line": {
-                        "width": 2,
-                    },
+                    "size": 6,
+                    "symbol": "square",
+                    "color": "rgba(0, 0, 0, 0.001)",
                 },
                 selected={
-                    "marker": {
-                        "size": 14,
-                        "color": "#D35400",
-                        "opacity": 1,
-                    },
+                    "marker": {"opacity": 1},
                 },
                 unselected={
-                    "marker": {
-                        "opacity": 1,
-                    },
+                    "marker": {"opacity": 1},
                 },
-                hovertemplate=(
-                    "%{text}<extra></extra>"
-                ),
+                hovertemplate="%{text}<extra></extra>",
             )
         )
 
         figure.update_layout(
-            height=650,
-            margin={
-                "l": 0,
-                "r": 0,
-                "t": 0,
-                "b": 0,
-            },
+            height=620,
+            margin={"l": 0, "r": 0, "t": 0, "b": 0},
             showlegend=False,
             clickmode="event+select",
             dragmode=False,
-            uirevision="school-map",
+            uirevision="highlight-map",
+            hovermode="closest",
+            hoverdistance=8,
             xaxis={
-                "range": [0, 100],
+                "range": [0, 818],
                 "visible": False,
                 "fixedrange": True,
             },
             yaxis={
-                "range": [100, 0],
+                "range": [560, 0],
                 "visible": False,
                 "fixedrange": True,
                 "scaleanchor": "x",
-                "scaleratio": map_height / map_width,
+                "scaleratio": 1,
             },
             paper_bgcolor="white",
             plot_bgcolor="white",
+            hoverlabel={
+                "bgcolor": "white",
+                "font_color": "#15372B",
+            },
         )
 
         st.plotly_chart(
@@ -474,7 +421,6 @@ with map_column:
         )
 
     st.caption(
-        "원은 공간 선택용 대표 위치입니다. "
         "‘계단’ 기록은 본관 왼쪽 아래 계단에 "
         "임시 연결했습니다."
     )
@@ -483,31 +429,21 @@ with map_column:
 with result_column:
     st.subheader("🔎 선택한 공간의 전체 기록")
 
-    selected_place = (
-        st.session_state.active_map_place
-    )
+    selected_place = st.session_state.active_map_place
 
     if selected_place is None:
         st.info(
-            "왼쪽 지도에서 확인할 공간의 "
-            "원을 눌러주세요."
+            "왼쪽 지도에서 형광펜으로 표시된 "
+            "장소 이름을 눌러주세요."
         )
 
     else:
         records = RECORDS[selected_place]
 
-        st.markdown(
-            f"### 📍 {selected_place}"
-        )
+        st.markdown(f"### 📍 {selected_place}")
+        st.write(f"**채취 기록 {len(records)}개**")
 
-        st.write(
-            f"**채취 기록 {len(records)}개**"
-        )
-
-        for index, record in enumerate(
-            records,
-            start=1,
-        ):
+        for index, record in enumerate(records, start=1):
             st.markdown(
                 f"#### {index}. {record['target']}"
             )
@@ -518,9 +454,7 @@ with result_column:
             )
 
             try:
-                image = get_photo(
-                    record["plate"]
-                )
+                image = get_photo(record["plate"])
 
                 if image is None:
                     st.warning(
@@ -546,15 +480,10 @@ with result_column:
                     f"사진을 표시하지 못했습니다: {error}"
                 )
 
-            st.write(
-                "**동정 상태:** 미동정"
-            )
-
+            st.write("**동정 상태:** 미동정")
             st.caption(
-                "집락 수: 미계수 · "
-                "조사 조건: 확인 후 추가"
+                "집락 수: 미계수 · 조사 조건: 확인 후 추가"
             )
-
             st.divider()
 
 
@@ -579,8 +508,7 @@ st.caption(
 st.subheader("💡 결과 해석 안내")
 
 st.write(
-    "같은 채취 방법과 배양 조건에서 얻은 결과끼리 "
-    "비교합니다. 사진의 색과 모양만으로 미생물의 종을 "
-    "확정하거나, 집락 수만으로 장소 전체의 안전성을 "
-    "판단하지 않습니다."
+    "같은 채취 방법과 배양 조건에서 얻은 결과끼리 비교합니다. "
+    "사진의 색과 모양만으로 미생물의 종을 확정하거나, "
+    "집락 수만으로 장소 전체의 안전성을 판단하지 않습니다."
 )
