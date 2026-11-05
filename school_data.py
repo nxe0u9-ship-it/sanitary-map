@@ -208,34 +208,53 @@ OBSERVATIONS = {
 }
 
 
+def risk_stage(score):
+    # 2.00 → 2단계, 3.00 → 3단계, 3.50 → 4단계
+    return min(
+        5,
+        max(
+            1,
+            math.floor(score + 0.5),
+        ),
+    )
+
+
+RISK_SCORES = {
+    "1_1": 3.67,
+    "1_2": 3.67,
+    "1_3": 3.00,
+    "1_4": 3.67,
+    "2_1": 5.00,
+    "2_2": 3.00,
+    "2_3": 3.33,
+    "2_4": 4.67,
+    "3_1": 4.50,
+    "3_2": 3.67,
+    "3_3": 4.00,
+    "3_4": 4.67,
+    "4_1": 3.50,
+    "4_2": 3.33,
+    "4_4": 3.50,
+    "5_1": 2.33,
+    "5_2": 1.33,
+    "5_3": 3.33,
+    "5_4": 3.33,
+    "6_1": 2.00,
+    "6_2": 3.67,
+    "6_3": 3.33,
+    "6_4": 3.67,
+    "7_1": 2.67,
+    "7_2": 4.00,
+    "7_3": 2.67,
+    "7_4": 2.67,
+}
+
+
+# 각 페이지는 이 값을 공통으로 사용합니다.
+# 단계는 직접 입력하지 않고 점수로 자동 계산합니다.
 RISK_RESULTS = {
-    "1_1": (3.67, 4),
-    "1_2": (3.67, 4),
-    "1_3": (3.00, 2),
-    "1_4": (3.67, 4),
-    "2_1": (5.00, 5),
-    "2_2": (3.00, 2),
-    "2_3": (3.33, 3),
-    "2_4": (4.67, 5),
-    "3_1": (4.50, 5),
-    "3_2": (3.67, 4),
-    "3_3": (4.00, 4),
-    "3_4": (4.67, 5),
-    "4_1": (3.50, 3),
-    "4_2": (3.33, 3),
-    "4_4": (3.50, 3),
-    "5_1": (2.33, 2),
-    "5_2": (1.33, 1),
-    "5_3": (3.33, 3),
-    "5_4": (3.33, 3),
-    "6_1": (2.00, 1),
-    "6_2": (3.67, 4),
-    "6_3": (3.33, 3),
-    "6_4": (3.67, 4),
-    "7_1": (2.67, 2),
-    "7_2": (4.00, 4),
-    "7_3": (2.67, 2),
-    "7_4": (2.67, 2),
+    result_id: (score, risk_stage(score))
+    for result_id, score in RISK_SCORES.items()
 }
 
 
@@ -451,6 +470,7 @@ def show_result_photo(result_id, framed=False):
 
 
 def place_risk(place):
+    # 해당 공간에 속한 모든 기록의 수정된 단계를 평균 냅니다.
     stages = [
         RISK_RESULTS[result_id][1]
         for result_id in GROUPS[place]
@@ -461,14 +481,7 @@ def place_risk(place):
         return None, None
 
     average = sum(stages) / len(stages)
-
-    color_stage = min(
-        5,
-        max(
-            1,
-            math.floor(average + 0.5),
-        ),
-    )
+    color_stage = risk_stage(average)
 
     return average, color_stage
 
@@ -584,7 +597,7 @@ def render_map(state_key, chart_key, chosen_ids=()):
         if average is not None:
             hover = (
                 f"{name}"
-                f"<br>평균 위험도 {average:.2f} / 5"
+                f"<br>위험도 단계 평균 {average:.2f} / 5"
                 f"<br>색상 기준 {stage}단계 · 자료 기준"
             )
         else:
@@ -665,7 +678,7 @@ def render_map(state_key, chart_key, chosen_ids=()):
     event = st.plotly_chart(
         fig,
         use_container_width=True,
-        key=f"{chart_key}_purple_v5",
+        key=f"{chart_key}_risk_corrected_v6",
         on_select="rerun",
         selection_mode="points",
         config={
